@@ -1,0 +1,199 @@
+{% extends base %}
+{% load i18n %}
+{% load static %}
+{% load template %}
+{% load dates %}
+
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'vendor/frappe-gantt/frappe-gantt.min.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+  {% if allMilestones %}
+    <script src="{% static 'vendor/frappe-gantt/frappe-gantt.js' %}"></script>
+    <script>
+      var tasks = [
+      {% for milestone in allMilestones %} 
+        
+        {% if milestone.start_date and milestone.due_date %}
+          {% with milestone.due_date|parse_date|dayssince as dayssince %}
+            {% if milestone.expired == False or milestone.expired == True and dayssince < 365 %}
+            {
+              id: '{{ milestone.id }}',
+              name: '{{ milestone.title }}',
+              start: '{{ milestone.start_date|parse_date|date:"Y-m-d" }}',
+              end: '{{ milestone.due_date|parse_date|date:"Y-m-d" }}',
+              progress: 0,
+            },
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      {% endfor %}
+      ]
+      var gantt = new Gantt(document.querySelector('#gantt'), tasks, {
+          header_height: 50,
+          column_width: 30,
+          step: 12,
+          bar_height: 40,
+          bar_corner_radius: 0,
+          arrow_curve: 5,
+          padding: 18,
+          {% if daysbetween < 730 %}
+            view_mode: 'Month',
+          {% else %}
+            view_mode: 'Year',
+          {% endif %}
+          date_format: 'YYYY-MM-DD',
+      });
+      const oldest = gantt.get_oldest_starting_date().getTime()
+      const t = new Date() - oldest
+      gantt.gantt_start = new Date(gantt.gantt_start.getTime() - t)
+      gantt.set_scroll_position()
+    </script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+  <h1>{{ remoteProject.name }}</h1>
+
+  {% if request.GET.error == 'invalid' or request.GET.error == 'loginrequired' %}
+    {% if request.GET.error == 'invalid' %}
+      <div class="alert alert-danger">
+        {% trans "The passcode you entered was not correct." %}
+      </div>
+      {% endif %}
+      <br><br>
+      {% trans "Login is required to access information on this dashboard. Please enter the passcode below to access this page." %}
+      <br><br>
+      <form method="POST" action="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/{{ localProject.public_access_hash }}">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="input-group mb-3">
+                  <input type="text" name="password" class="form-control form-control-lg" placeholder="{% trans "Enter passcode" %}" aria-label="{% trans "Enter passcode" %}" aria-describedby="button-addon2">
+                  <input class="btn btn-outline-secondary" type="submit" id="button-addon2" value="{% trans "Request access" %}">
+            </div>
+          </div>
+        </div> 
+      </form>
+  {% else %}
+  <br>
+  <div class="row">
+    <div class="col-2">
+      <img class="w-100" src="{% if localProject.image %}{{ localProject.image.url }}{% else %}{{ remoteProject.avatar_url }}{% endif %}" alt="{% trans "No image found" %}">
+    </div>
+    <div class="col-6">
+      {% if localProject.publicOverviewText %}
+        {{ localProject.publicOverviewText|safe }}
+      {% else %}
+        {{ remoteProject.description }}
+      {% endif %}
+    </div>
+    <div class="col-4">
+        <div class="row">
+          {% for type, label in fileTypes.DownloadableFileTypes.choices %}
+            {% with relatedFiles=localProject.downloadablefile_set|in_category:type %}
+              {% if relatedFiles|length > 0 %}
+              <div class="box">
+                <br>
+                <div class="col-12"  id="{{ type }}">
+                  <h4 class="mw-100" onclick="$('#{{ type }} .holder,#{{ type }} .fa-chevron-down,#{{ type }} .fa-chevron-right').toggle();">{{ label }} ({{ relatedFiles|length }}) <i class="fa far fa-chevron-down fa-fw" {% if relatedFiles|length > 2 %}style="display: none;"{% endif %}></i><i class="fa far fa-chevron-right fa-fw" {% if relatedFiles|length <= 2 %}style="display: none;"{% endif %}></i></h4>
+                  <div class="holder" {% if relatedFiles|length > 2 %}style="display: none;"{% endif %}>
+                  {% with t='partials/files'|template %}
+                    {% include t with files=relatedFiles%}
+                  {% endwith %}
+                  </div>
+                </div>
+              </div>
+              {% endif %} 
+            {% endwith %}
+          {% endfor %}
+        </div>
+        <br />
+    </div>
+  </div>
+  {% if allMilestones %}
+  <br><br>
+  <div class="row">
+    <div class="col-12">
+      <h4>Projektzeitplan</h4><br>
+      <svg id="gantt"></svg>
+    </div>
+  </div>
+  {% endif %}
+  <br><br><br>
+  <div class="row">
+    <div class="col-4 pe-5 text-justify">
+      Sie haben noch offene Fragen zu Ihrem Projekt oder den aufgeführten Projektdaten und Details? Wir sind gerne persönlich für Sie da!
+      <br><br>
+      Sie erreichen uns während unserer Öffnungszeiten.
+      <br><br>
+      <table class="w-100">
+          <tbody><tr>
+            <td><strong>Montag - Donnerstag</strong></td>
+            <td>08:00 - 16:00 Uhr</td>
+          </tr>
+          <tr>
+            <td><strong>Freitag</strong></td>
+            <td>08:00 - 14:00 Uhr</td>
+          </tr>
+          <tr><td></td><td><br></td></tr>
+          <tr>
+            <td><strong>Telefon Zentrale</strong></td>
+            <td>0761 216 306 - 0</td>
+          </tr>
+        </tbody>
+      </table>
+      <br>
+      <br>
+    </div>
+    <div class="col-4">
+      <h4>Ihre Ansprechpartner (Projekt)</h4><br>
+      <div class="row">
+        {% for assignee in localProject.assignees.all %}
+          <div class="col-md-12 pb-3">
+            {% with t='partials/employee'|template %}
+              {% include t with issues=mostRecentIssues employee=assignee %}
+            {% endwith %}
+          </div>
+        {% endfor %}
+      </div><br>
+    </div>
+    <div class="col-4">
+      <h4>Ihre Ansprechpartner (Organisation)</h4><br>
+      <div class="row">
+        <div class="col-3 text-end">
+            <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank">
+                <img src="https://software-design.de/static/img/team/Jenny1_pp.jpg" width="75">
+            </a>
+        </div>
+        <div class="col-9">
+          <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank" class="text-decoration-none text-secondary nolink">
+            <strong class="nolink">Jennifer Luhr »</strong><br>
+          </a>
+          <i class="far fa-envelope"></i> &nbsp;<a href="mailto:jl@software-design.de">jl@software-design.de</a><br>
+          <i class="fa far fa-phone"></i> &nbsp;<a href="tel:0761 216 306 54">0761 216 306 54</a>
+        </div>
+      </div>
+      <br>
+      <div class="row">
+        <div class="col-3 text-end">
+            <a href="https://software-design.de/kontakt/team/jgr&code=64" target="_blank" class="nolink">
+                <img src="https://software-design.de/static/img/team/unknown.png" width="75">
+            </a>
+        </div>
+        <div class="col-9">
+          <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank" class="text-decoration-none text-secondary nolink">
+            <strong class="nolink">Jessica Grissmann »</strong><br>
+          </a>
+          <i class="far fa-envelope"></i> &nbsp;<a href="mailto:jgr@software-design.de">jgr@software-design.de</a><br>
+          <i class="fa far fa-phone"></i> &nbsp;<a href="tel:0761 216 306 64">0761 216 306 64</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+{% endblock %}

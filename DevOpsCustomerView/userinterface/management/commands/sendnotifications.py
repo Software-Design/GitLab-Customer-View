@@ -6,16 +6,22 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.core.management import BaseCommand, CommandError
 from userinterface.models import Project, UserProjectAssignment
-from userinterface.tools.viewsHelper import getProject, getRepositoryService
+from userinterface.tools.viewsHelper import getRepositoryService
+
 
 class Command(BaseCommand):
-    help = 'Send notification mails to users (should run as cron job once a day). Default notify about changes since last run, or at max the last <maxdays> days. python manage.py sendnotifications --maxdays 3'
+    help = "Send notification mails to users (should run as cron job once a day). Default notify about changes since last run, or at max the last <maxdays> days. python manage.py sendnotifications --maxdays 3"
 
     def add_arguments(self, parser):
-        parser.add_argument('-maxdays', '--maxdays', type=int, help='If last run is past longer than maxdays, than limit notify to that range.')
+        parser.add_argument(
+            "-maxdays",
+            "--maxdays",
+            type=int,
+            help="If last run is past longer than maxdays, than limit notify to that range.",
+        )
 
     def handle(self, *args, **options):
-        maxdays = options['maxdays']
+        maxdays = options["maxdays"]
         if not maxdays:
             maxdays = 3
         # As we use the permissions from every user, we have to check for every user if there is a change for him/her
@@ -25,7 +31,9 @@ class Command(BaseCommand):
 
         notifications = self.sendNotifications(maxdays)
 
-        self.stdout.write('command executed and %s notifications sent' % len(notifications))
+        self.stdout.write(
+            "command executed and %s notifications sent" % len(notifications)
+        )
 
     def sendNotifications(self, maxDays):
         projectWithChanges = []
@@ -33,29 +41,41 @@ class Command(BaseCommand):
         allProjects = Project.objects.filter(closed=False, inactive=False)
         for project in allProjects:
             sinceDateMax = datetime.datetime.now() - datetime.timedelta(days=maxDays)
-            sinceLastRun = datetime.datetime.now(timezone.utc) - project.notificationLastRun
+            sinceLastRun = (
+                datetime.datetime.now(timezone.utc) - project.notificationLastRun
+            )
             sinceDate = project.notificationLastRun
-            if (datetime.timedelta(days=maxDays) < sinceLastRun):
+            if datetime.timedelta(days=maxDays) < sinceLastRun:
                 sinceDate = sinceDateMax
 
-            allProjectAssignments = UserProjectAssignment.objects.filter(project=project)
+            allProjectAssignments = UserProjectAssignment.objects.filter(
+                project=project
+            )
             for projectAssignment in allProjectAssignments:
                 repService = getRepositoryService(projectAssignment.project)
-                lastUpdate = repService.lastUpdate(projectAssignment.project, projectAssignment.accessToken)
-                projectObject = repService.loadProject(projectAssignment.project, projectAssignment.accessToken)
-                if (lastUpdate > sinceDate):
+                lastUpdate = repService.lastUpdate(
+                    projectAssignment.project, projectAssignment.access_token
+                )
+                projectObject = repService.loadProject(
+                    projectAssignment.project, projectAssignment.access_token
+                )
+                if lastUpdate > sinceDate:
                     projectWithChanges.append(projectObject)
                     break
 
         emailAddresses = []
         for project in projectWithChanges:
-            projectUsers = UserProjectAssignment.objects.filter(project=project['localProject'],
-                                                                enableNotifications=True).order_by('user').all()
+            projectUsers = (
+                UserProjectAssignment.objects.filter(
+                    project=project["localProject"], enable_notifications=True
+                )
+                .order_by("user")
+                .all()
+            )
             for projectUser in projectUsers:
-                if (len(projectUser.user.email) > 0):
+                if len(projectUser.user.email) > 0:
                     self.sendNotificationToUser(projectUser, project)
                     emailAddresses.append(projectUser.user.email)
-
 
         # update lastRun date
         allProjects = Project.objects.filter(closed=False, inactive=False)
@@ -83,7 +103,7 @@ class Command(BaseCommand):
     #         allProjectAssignments = UserProjectAssignment.objects.filter(project=project)
     #         for projectAssignment in allProjectAssignments:
     #             repService = getRepositoryService(projectAssignment.project)
-    #             glProject = repService.loadProject(projectAssignment.project, projectAssignment.accessToken)
+    #             glProject = repService.loadProject(projectAssignment.project, projectAssignment.access_token)
     #             # ToDo add filter since maxdays
     #             sinceDateMax = datetime.datetime.now() - datetime.timedelta(days=maxDays)
     #             sinceLastRun = datetime.datetime.now(timezone.utc) - project.notificationLastRun
@@ -106,7 +126,7 @@ class Command(BaseCommand):
     #         # project.save()
     #
     #         projectUsers = UserProjectAssignment.objects.filter(project=project['localProject'],
-    #                                                             enableNotifications=True).order_by('user').all()
+    #                                                             enable_notifications=True).order_by('user').all()
     #         for projectUser in projectUsers:
     #             if (len(projectUser.user.email) > 0):
     #                 sendNotificationToUser(projectUser, project)
@@ -115,12 +135,14 @@ class Command(BaseCommand):
     #     return emailAddresses
 
     def sendNotificationToUser(self, projectUser, project):
-        message = template('mail/notification').render({
-            'project': project,
-            'baseUrl': settings.INTERFACE_URL,
-        })
+        message = template("mail/notification").render(
+            {
+                "project": project,
+                "baseUrl": settings.INTERFACE_URL,
+            }
+        )
         mail = EmailMessage(
-            subject="News for " + project['localProject'].name,
+            subject="News for " + project["localProject"].name,
             body=message,
             to=[projectUser.user.email],
             from_email=settings.EMAIL_FROM,

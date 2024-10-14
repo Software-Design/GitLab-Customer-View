@@ -5,49 +5,57 @@ from typing import Union
 
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import Http404, HttpResponse
-from .templateHelper import template
-from userinterface.models import Project, UserProjectAssignment
-from userinterface.templatetags.numbers import parseHumanizedTime
+from userinterface.models import Project, TeamMember
 
 from .gitlabCache import gitlabServiceCache
 from .githubCache import githubServiceCache
 
+from typing import Union
+from django.core.handlers.wsgi import WSGIRequest
+from django.http import Http404, HttpResponse
+from django.template import loader
 
-def getProject(request: WSGIRequest, id: int) -> Union[dict, HttpResponse]:
+
+def get_project(request: WSGIRequest, project_id: int) -> Union[dict, HttpResponse]:
     """
-    Get the project (currently only gitlab project) from the cache
+    Get the project (currently only GitLab or GitHub project) from the cache.
 
-    raises:
-        Http404:
-            If the requested project does not exist or is not linked to the requesting user
+    Raises:
+        Http404: If the requested project does not exist or is not linked to the requesting user.
     """
-
-    project = Project.objects.filter(projectIdentifier=id,closed=False).first()
+    project = Project.objects.filter(
+        project_identifier=project_id, closed=False
+    ).first()
 
     if not request.user.is_authenticated or not project:
         raise Http404
 
     if request.user.is_staff:
-        assignment = UserProjectAssignment.objects.filter(project=project).first()
+        has_access = True
     else:
-        assignment = UserProjectAssignment.objects.filter(user=request.user, project=project).first()
+        team_memberships = TeamMember.objects.filter(user=request.user).values_list(
+            "team", flat=True
+        )
+        has_access = project.teams.filter(id__in=team_memberships).exists()
 
-    if not project or not assignment:
+    if not has_access:
         raise Http404
 
-    # TODO: if we plan to support other things besides gitlab we should extend this to load even other projects (none-gitlab projects)
-    repService = getRepositoryService(project)
-    project = repService.loadProject(project, assignment.accessToken)
-    if 'error' in project:
-        if '404' in project['error']:
+    rep_service = getRepositoryService(project)
+    project_data = rep_service.loadProject(project, project.access_token)
+
+    if "error" in project_data:
+        if "404" in project_data["error"]:
             raise Http404
         else:
-            return HttpResponse(template('404').render({ **project }, request))
+            template = loader.get_template("404.html")
+            return HttpResponse(template.render({**project_data}, request))
 
-    return project
+    return project_data
 
-def getRepositoryService(projectObject: Project):
-    if projectObject.repositoryService == Project.RepositoryServiceTypes.GITLAB:
+
+def getRepositoryService(project: Project):
+    if project.repository_service == Project.RepositoryServiceTypes.GITLAB:
         return gitlabServiceCache()
-    elif projectObject.repositoryService == Project.RepositoryServiceTypes.GITHUB:
+    elif project.repository_service == Project.RepositoryServiceTypes.GITHUB:
         return githubServiceCache()

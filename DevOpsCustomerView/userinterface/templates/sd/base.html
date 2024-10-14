@@ -1,0 +1,411 @@
+{% extends '../base/base.html' %}
+{% load i18n %}
+
+{% block base_css %}
+<link rel="stylesheet" href="https://software-design.de/static/vendor/bootstrap-5.1.3/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://software-design.de/static/fonts/LatoLatin/latolatinfonts.css">
+<link rel="stylesheet" href="https://software-design.de/static/css/main.css">
+<link rel="stylesheet" href="/static/vendor/simplemde/simplemde.min.css" />
+<link rel="stylesheet" href="/static/css/base.css" />
+<style>
+  .btn-outline-primary,
+  .btn-outline-primary:hover
+  {
+    color: #ff8128;
+    border-color: #ff8128;
+  }
+  .bg-primary,
+  .btn-primary,
+  .btn-primary:hover,
+  .btn-group .btn-outline-primary:hover {
+    background-color: #ff8128 !important;
+    border-color: white;
+    color: white;
+  }
+  hr {
+    border-top: 1px solid #ff8128;
+  }
+  .gantt .tick {
+    stroke: #888888 !important;
+    stroke-width: 1em;
+  }
+  .gantt .handle {
+    opacity: 0 !important;
+  }
+  .gantt-container .popup-wrapper {
+    background-color: #3a3d45;
+  }
+  .gantt .bar {
+    fill: #3a3d45 !important;
+  }
+  .gantt-container .popup-wrapper {
+    color: white !important;
+  }
+  pre code {
+    color: #ff8128;
+    font-size: .875em;
+  }
+  blockquote {
+    text-align: left;
+    font-size: 1em;
+    padding: 0px 20px;
+    border-left: 4px solid grey;
+  }
+</style>
+{% endblock %}
+
+{% block base_js %}
+<script defer src="https://software-design.de/static/vendor/fontawesome-pro-5.15.4/js/fontawesome.min.js"></script>
+<script defer src="https://software-design.de/static/vendor/fontawesome-pro-5.15.4/js/regular.min.js"></script>
+<script defer src="https://software-design.de/static/vendor/fontawesome-pro-5.15.4/js/brands.min.js"></script>
+<script defer src="https://software-design.de/static/vendor/bootstrap-5.1.3/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://software-design.de/static/vendor/jquery-3.6.1/jquery-3.6.1.min.js"></script>
+<script defer nonce="{{ request.csp_nonce }}" src="/static/vendor/simplemde/simplemde.min.js"></script>
+<script defer nonce="{{ request.csp_nonce }}" src="/static/js/base.js"></script>
+{% endblock %}
+
+{% block navigation %}
+    <nav class="navbar navbar-expand-lg bg-ligth navbar-ligth fixed-top shadow">
+    <div class="container-lg mt-3 mt-sm-0">
+        <a class="navbar-brand d-none d-sm-block d-lg-none d-xl-none d-xxl-block" href="/">
+            <img src="data:image/png;base64,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" width="75" class="me-2" alt="SD Software-Design GmbH">
+        </a>
+        <a class="navbar-brand hidden-sm mt-1" href="/" title="Software-Design" style="font-size: 1.34em;">SD <span style="color: #ff8128;">Software-Design</span> GmbH<br>
+            <small class="text-muted">Projektmanagement & Dokumentation</small>
+        </a>
+        <div class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#navbar-content">
+            <div class="hamburger-toggle">
+                <div class="hamburger primary-txt">
+                    <i class="far fa-bars fa-2x"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse navbar-collapse" id="navbar-content">
+          {% if request.user.is_authenticated %}
+            <ul class="navbar-nav mr-auto mb-2 mb-lg-0 d-flex ms-auto mt-4 mt-lg-0">
+                <li class="nav-item position-static">
+                    <a class="nav-link" href="/overview/">Alle Projekte</a>
+                </li>
+                {% if remoteProject %}
+                <li class="nav-item dropdown dropdown-mega position-static">
+                  {% if wikiPages %}
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside">{{ localProject.name|truncatechars:25 }}</a>
+                  {% else %}
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside">{{ localProject.name|truncatechars:45 }}</a>
+                  {% endif %}
+                    <div class="dropdown-menu shadow">
+                        <div class="mega-content p-3 mx-auto">
+                            <div class="container-lg">
+                                <div class="row">
+                                    <div class="col-lg-6 col-md-10-12">
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}">
+                                            <div class="item-itext row">
+                                                <div class="icon col-2">
+                                                    <i class="far fa-cabinet-filing"></i>
+                                                </div>
+                                                <div class="text col-10">
+                                                    <strong>Projektübersicht</strong><br>
+                                                    <p class="text-muted">Hier stellen Ihnen auf einen Blick die<br>Übersicht über den aktuellen Status.</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        {% if localProject.downloadablefile_set.count > 0 or projectReleases|length > 0 %}
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/downloads/">
+                                            <div class="item-itext row">
+                                                <div class="icon col-2">
+                                                  <i class="far fa-download"></i>
+                                                </div>
+                                                <div class="text col-10">
+                                                    <strong>Dokumente, Downloads & Links ({{ localProject.downloadablefile_set.count }})</strong><br>
+                                                    <p class="text-muted">Laden Sie Projektdokumente herunter</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-6 col-md-12">
+                                        {% if localProject.enable_milestones %}
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/milestones/">
+                                            <div class="item-itext row">
+                                                <div class="icon col-2">
+                                                    <i class="far fa-tasks"></i>
+                                                </div>
+                                                <div class="text col-10">
+                                                    <strong>Projektphasen</strong><br>
+                                                    <p class="text-muted">Übersicht über die Abfolge der geplanten<br>Arbeitspakete in Ihrem Projekt.</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        {% endif %}
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/issues/">
+                                            <div class="item-itext row">
+                                                <div class="icon col-2">
+                                                  <i class="far fa-file-chart-line"></i>
+                                                </div>
+                                                <div class="text col-10">
+                                                    <strong>Alle Tickets</strong><br>
+                                                    <p class="text-muted">Alle Tickets, Anfragen und Arbeiten</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+
+                {% if wikiPages %}
+                <li class="nav-item dropdown dropdown-mega position-static">
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside">Dokumentation</a>
+                    <div class="dropdown-menu shadow">
+                        <div class="mega-content p-3 mx-auto">
+                            <div class="container-lg">
+                                <div class="row">
+                                    <div class="col-lg-6 col-md-12">
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/documentation/">
+                                            <div class="item-itext row">
+                                                <div class="icon col-2">
+                                                    <i class="far fa-folder-tree"></i>
+                                                </div>
+                                                <div class="text col-10">
+                                                    <strong>Inhaltsverzeichnis ansehen</strong><br>
+                                                    <p class="text-muted">Überblick über die Inhalte der Dokumentation</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/documentation/print/">
+                                          <div class="item-itext row">
+                                              <div class="icon col-2">
+                                                  <i class="far fa-download"></i>
+                                              </div>
+                                              <div class="text col-10">
+                                                  <strong>Dokumentation herunterladen</strong><br>
+                                                  <p class="text-muted">Gesamte Dokumentation herunterladen</p>
+                                              </div>
+                                          </div>
+                                      </a>
+                                    </div>
+                                    <div class="col-lg-6 col-md-12">
+                                        <ul class="list-group">
+                                        {% for wiki in wikiPages %}
+                                            <li class="list-group-item"><a class="dropdown-item" href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/documentation/?category={{ wiki.title }}">{{ forloop.counter }} {% if wiki.title == '/' %}{% trans 'Documentation' %}{% else %}{{ wiki.title }}{% endif %}</a></li>
+                                        {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+
+
+                {% if request.user.is_superuser %}
+                <li class="nav-item dropdown dropdown-mega position-static">
+                  <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside"><i class="far fa-star"></i></a>
+                  <div class="dropdown-menu shadow">
+                      <div class="mega-content p-3 mx-auto">
+                          <div class="container-lg">
+                              <div class="row">
+                                  <div class="col-lg-6 col-md-12">
+                                      <a href="/admin/">
+                                          <div class="item-itext row">
+                                              <div class="icon col-2">
+                                                  <i class="far fa-folder-tree"></i>
+                                              </div>
+                                              <div class="text col-10">
+                                                  <strong>Admin-Interface</strong><br>
+                                                  <p class="text-muted">Administrationsoberfläche</p>
+                                              </div>
+                                          </div>
+                                      </a>
+                                      <a href="/reports/">
+                                        <div class="item-itext row">
+                                            <div class="icon col-2">
+                                                <i class="far fa-table"></i>
+                                            </div>
+                                            <div class="text col-10">
+                                                <strong>Auswertungen</strong><br>
+                                                <p class="text-muted">Berichte und Übersichtsdaten</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                      {% if request.user.is_staff and localProject %}
+                                      <a href="#" data-bs-toggle="modal" data-bs-target="#exportModal">
+                                        <div class="item-itext row">
+                                            <div class="icon col-2">
+                                                <i class="far fa-download"></i>
+                                            </div>
+                                            <div class="text col-10">
+                                                <strong>Export</strong><br>
+                                                <p class="text-muted">Stundenübersicht exportieren</p>
+                                            </div>
+                                        </div>
+                                      </a>
+                                      {% endif %}
+                                  </div>
+                                  <div class="col-lg-6 col-md-12">
+                                      <a href="/cache/clear?redirect={{ request.path }}">
+                                        <div class="item-itext row">
+                                            <div class="icon col-2">
+                                                <i class="far fa-broom"></i>
+                                            </div>
+                                            <div class="text col-10">
+                                                <strong>Cache vollständig leeren</strong><br>
+                                                <p class="text-muted">Alle zwischengespeicherten Daten löschen</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="/cache/warmup?redirect={{ request.path }}">
+                                      <div class="item-itext row">
+                                          <div class="icon col-2">
+                                              <i class="far fa-abacus"></i>
+                                          </div>
+                                          <div class="text col-10">
+                                              <strong>Cache neu generieren</strong><br>
+                                              <p class="text-muted">Projektdaten aus GitLab neu holen</p>
+                                          </div>
+                                      </div>
+                                  </a>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </li>
+                {% endif %}
+              <li class="nav-item position-static">
+                  <a class="nav-link" href="/logout/"><i class="far fa-sign-out"></i></a>
+              </li>
+            </ul>
+            {% else %}
+            <ul class="navbar-nav mr-auto mb-2 mb-lg-0 d-flex align-items-center ms-auto mt-4 mt-lg-0">
+              <li class="nav-item position-static">
+                  <a class="nav-link" href="https://software-design.de/">Zur SD Software-Design GmbH &raquo;</a>
+              </li>
+              <li class="nav-item dropdown">
+                <button class="nav-item btn btn-primary dropdown-toggle" id="loginDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% trans "Login" %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-4 custom-dropdown" aria-labelledby="loginDropdown">
+                    <form class="form-signin" method="post">
+                      {% csrf_token %}
+                      {% if request.GET.error %}
+                      <div class="alert alert-danger">{% trans "Login fehlgeschlagen" %}</div>
+                      {% endif %}
+                      <h4 class="h4 mb-3 font-weight-normal">{% trans "Bitte melden Sie sich an" %}</h4>
+                      <label for="email" class="sr-only">{% trans "Benutzername / E-Mail-Adresse" %}</label>
+                      <input type="text" name="email" class="form-control" placeholder="{% trans "Benutzername / E-Mail-Adresse" %}" required autofocus>
+                      <br>
+                      <label for="password" class="sr-only">{% trans "Passwort" %}</label>
+                      <input type="password" name="password" class="form-control" placeholder="{% trans "Passwort" %}" required>
+                      <br>
+                      <button class="btn btn-lg btn-primary btn-block float-end" type="submit">{% trans "Anmelden" %}</button>
+                    </form>
+                </div>
+            </li>
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+<br>
+{% endblock %}
+
+
+{% block container %}
+<br><br>
+<div class="container mt-5">
+{% block content %}
+{% endblock %}
+</div>
+{% endblock %}
+
+{% block footer %}
+<br><br><br><br><br><br>
+<div class="horizontal-line primary-bg height-s overlay-xs rotated"></div>
+<footer class="footer secondary-bg overlay-xs secondary-txt pt-5">
+  <div class="container-lg">
+    <div class="row">
+      <div class="col-md-6 col-xl-3 col-sm-12">
+        <br>
+        <br>
+        <h4 class="footer__title">SD Software-Design GmbH</h4>
+        <div class="item-itext row">
+          <div class="icon col-2 col-xl-3">
+            <i class="far fa-home"></i>
+          </div>
+          <div class="text col-7 col-xl-9">
+            <strong>
+              Basler Landstraße 8
+              <br />
+              79111 Freiburg i. Br.
+            </strong>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 col-sm-12">
+        <br><br><br>
+        <div class="item-itext row">
+          <div class="icon col-2 col-xl-3">
+            <i class="far fa-phone-laptop"></i>
+          </div>
+          <div class="text col-7 col-xl-9">
+            <a class="nolink text-white" href="tel:00497612163060"><strong>+49 (0) 761 216 306 - 0</strong></a>
+            <br />
+            <a class="nolink text-white" href="mailto:info@software-design.de"><strong>info@software-design.de</strong></a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 col-sm-12">
+        <br><br><br>
+        <div class="item-itext row">
+          <div class="icon col-2 col-xl-3">
+            <i class="far fa-clock"></i>
+          </div>
+          <div class="text col-7 col-xl-9">
+            <table class="w-100">
+              <tr>
+                <td>Mo - Do</td>
+                <td>08 - 16 Uhr</td>
+              </tr>
+              <tr>
+                <td>Freitag</td>
+                <td>08 - 14 Uhr</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 col-sm-12">
+        <br><br><br>
+        <div class="item-itext row">
+          <div class="icon col-2 col-xl-3">
+            <i class="far fa-globe"></i>
+          </div>
+          <div class="text col-7 col-xl-9">
+            Weitere Informationen unter
+            <br />
+            <a class="nolink text-white" href="https://software-design.de"><strong>www.software-design.de</strong></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+<br /><br />
+<div class="container-lg">
+  <small><strong>© 2012 - {% now "Y" %}</strong> | <a href="/" title="Individuelle Softwareentwicklung von Software-Design" class="nolink">SD Software-Design GmbH</a></small>
+  <div class="float-start float-md-end">
+    <small><a href="https://software-design.de/rechtliches/impressum" title="Software-Design Impressum" class="nolink">Impressum</a> | <a href="https://software-design.de/rechtliches/datenschutz" title="Software-Design Datenschutz" class="nolink">Datenschutz</a> | <a href="https://software-design.de/service/" class="nolink">Weitere Online-Services</a></small>
+  </div>
+</div>
+<script src="https://chat-assets.frontapp.com/v1/chat.bundle.js"></script>
+<script>
+  window.FrontChat('init', {chatId: '614fc8dddb8c553d71eee90701cdc1ef', useDefaultLauncher: true, email: '{{ request.user.email }}', name: '{{ request.user.first_name }} {{ request.user.last_name }}', userHash: '{{ userHash }}'});
+</script>
+<br>
+{% endblock %}

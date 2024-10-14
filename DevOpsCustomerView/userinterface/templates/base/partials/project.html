@@ -16,7 +16,7 @@
         {% endif %}
 
         <br><br>
-        {% if p.localProject.enableMilestones and not p.localProject.inactive %}
+        {% if p.localProject.enable_milestones and not p.localProject.inactive %}
             <strong>{% trans "Current Milestone(s)" %}:</strong><br>
             {% for milestone in p.allMilestones %}
                 &raquo; {{ milestone.title }}<br>

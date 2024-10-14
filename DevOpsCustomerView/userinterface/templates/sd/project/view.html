@@ -1,0 +1,166 @@
+{% extends base %}
+{% load i18n %}
+{% load static %}
+{% load dates %}
+{% load template %}
+
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'vendor/frappe-gantt/frappe-gantt.min.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+  {% if allMilestones %}
+    <script src="{% static 'vendor/frappe-gantt/frappe-gantt.js' %}"></script>
+    <script>
+      var tasks = [
+      {% for milestone in allMilestones %}
+        {% if milestone.start_date and milestone.due_date %}
+          {% with milestone.due_date|parse_date|dayssince as dayssince %}
+            {% if milestone.expired == False or milestone.expired == True and dayssince < 365 %}
+            {
+              id: '{{ milestone.id }}',
+              name: '{{ milestone.title }}',
+              start: '{{ milestone.start_date|parse_date|date:"Y-m-d" }}',
+              end: '{{ milestone.due_date|parse_date|date:"Y-m-d" }}',
+              progress: 0,
+            },
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      {% endfor %}
+      ]
+      var gantt = new Gantt(document.querySelector('#gantt'), tasks, {
+          header_height: 50,
+          column_width: 30,
+          step: 24,
+          bar_height: 40,
+          bar_corner_radius: 0,
+          arrow_curve: 5,
+          padding: 18,
+          custom_popup_html: function(task) {
+            window.location = '/project/{{ remoteProject.path }}/{{ remoteProject.id }}/milestone/'+task.id;
+            return ``;
+          },
+          {% if daysbetween < 730 %}
+            view_mode: 'Month',
+          {% else %}
+            view_mode: 'Year',
+          {% endif %}
+          date_format: 'YYYY-MM-DD',
+      });
+      const oldest = gantt.get_oldest_starting_date().getTime()
+      const t = new Date() - oldest
+      gantt.gantt_start = new Date(gantt.gantt_start.getTime() - t)
+      gantt.set_scroll_position()
+    </script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="btn-group float-end" role="group">
+  {% if localProject.enable_ticket_creation %}
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Ticket erstellen" %}</a>
+  {% endif %}
+  {% if localProject.enable_milestones %}
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/milestones/" class="btn btn-outline-primary"><i class="fa far fa-tasks"></i> {% trans "Meilensteine" %}</a>
+  {% endif %}
+  {% if wikiPages and localProject.enable_documentation  %}
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/documentation/" class="btn btn-outline-primary"><i class="fa far fa-book"></i> {% trans "Dokumentation" %}</a>
+  {% endif %}
+  {% if request.user.is_superuser %}
+  <a href="{{ remoteProject.web_url }}" class="btn btn-outline-primary" target="_blank"><i class="fab fa-github"></i></a>
+  {% endif %}
+</div>
+
+<h1>{{ localProject.name }}</h1>
+  {% if allMilestones %}
+    {{ remoteProject.description }}
+  {% endif %}
+  <br><br>
+  <div class="row">
+    <div class="col-3">
+      <div style="height: 200px; width: 90%; background-image: url('{% if localProject.image %}{{ localProject.image.url }}{% else %}{{ remoteProject.avatar_url }}{% endif %}'); background-size: contain; background-position: center; background-repeat: no-repeat; margin: 5% 5%;"></div>
+    </div>
+    <div class="col-9">
+      {% if not allMilestones %}
+        {{ remoteProject.description }}
+      {% else %}
+      <svg id="gantt"></svg>
+      {% endif %}
+    </div>
+    <div class="col-8">
+      <br>
+      <h4>{% trans "Zuletzt aktualisierte Tickets" %}</h4><br>
+      <ul class="list-group">
+        {% with t='partials/issues'|template %}
+          {% include t with issues=mostRecentIssues large=True %}
+        {% endwith %}
+      </ul>
+      <br>
+      <div class="btn-group float-end" role="group">
+        <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/issues/" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Alle Tickets" %} &raquo;</a>
+      </div>
+      <br>
+    </div>
+    <div class="col-4">
+      <br>
+      <h4>Ihre Ansprechpartner</h4><h5>(Projekt & Entwicklung)</h5><br>
+      <div class="row">
+            <div class="col-md-12 pb-3">
+              {% with t='partials/employee'|template %}
+                  {% include t with localProject=localProject %}
+              {% endwith %}
+            </div>
+      </div><br>
+      <h4>Ihre Ansprechpartnerinnen</h4><h5>(Organisation & Abrechnung)</h5><br>
+      <div class="row">
+        <div class="col-3 text-end">
+            <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank"  class="nolink">
+                <img src="https://software-design.de/static/img/team/Jenny.png" width="75">
+            </a>
+        </div>
+        <div class="col-9">
+          <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank" class="text-decoration-none text-secondary nolink">
+            <strong class="nolink">Jennifer Luhr »</strong><br>
+          </a>
+          <i class="far fa-envelope"></i> &nbsp;<a href="mailto:jl@software-design.de">jl@software-design.de</a><br>
+          <i class="fa far fa-phone"></i> &nbsp;<a href="tel:0761 216 306 54">0761 216 306 54</a>
+        </div>
+      </div>
+      <br>
+      <div class="row">
+        <div class="col-3 text-end">
+            <a href="https://software-design.de/kontakt/team/jgr&code=64" target="_blank" class="nolink">
+                <img src="https://software-design.de/static/img/team/Jessica.png" width="75">
+            </a>
+        </div>
+        <div class="col-9">
+          <a href="https://software-design.de/kontakt/team/jl&code=54" target="_blank" class="text-decoration-none text-secondary nolink">
+            <strong class="nolink">Jessica Grissmann »</strong><br>
+          </a>
+          <i class="far fa-envelope"></i> &nbsp;<a href="mailto:jgr@software-design.de">jgr@software-design.de</a><br>
+          <i class="fa far fa-phone"></i> &nbsp;<a href="tel:0761 216 306 64">0761 216 306 64</a>
+        </div>
+      </div>
+      {% if localProject.downloadablefile_set.count > 0 or projectReleases|length > 0  %}
+        <br>
+        <h4>{% trans "Documents & Downloads" %}</h4>
+        {% blocktrans with amountFiles=localProject.downloadablefile_set.count amountRelease=projectReleases|length %}
+        There are {{ amountFiles }} file(s) and {{ amountRelease }} release(s) attached to this project.
+        {% endblocktrans %}
+        <br><br>
+        <div class="btn-group" role="group">
+          <a href="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/downloads/" class="btn btn-outline-primary"><i class="fa far fa-download"></i> {% trans "Documents & Downloads" %}</a>
+        </div>
+        <br><br>
+        Wenn Sie uns Dateien oder Dokumente übermitteln möchten nutzen Sie gerne unseren verschlüsselten Dateitransfer:
+        <br><br>
+        <div class="btn-group" role="group">
+          <a href="https://transfer.software-design.de" class="btn btn-outline-primary" target="_blank"><i class="fa far fa-upload"></i> Dateien hochladen</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

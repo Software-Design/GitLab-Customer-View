@@ -1,45 +1,101 @@
 {% extends base %}
 {% load i18n %}
+{% load static %}
 
 {% block content %}
-<div class="container">
-  <div class="row">
-    <div class="col-12">
-      <h1>{{ settings.INTERFACE_NAME }} - {% trans "Login" %}</h1>
-      <br><br>
-    </div>
-    <div class="col-5">
-      <form class="form-signin" method="post">
-          {% csrf_token %}
-          {% if request.GET.error %}
-          <div class="alert alert-danger">{% trans "Login unsuccessful" %}</div>
-          {% endif %}
-          <h4 class="h4 mb-3 font-weight-normal">{% trans "Please sign in" %}</h4>
-          <label for="email" class="sr-only">{% trans "Email address" %}</label>
-          <input type="text" name="email" class="form-control" placeholder="{% trans "Email address" %}" required autofocus>
-          <br>
-          <label for="password" class="sr-only">{% trans "Password" %}</label>
-          <input type="password" name="password" class="form-control" placeholder="{% trans "Password" %}" required>
-          <br>
-          <button class="btn btn-lg btn-primary btn-block" type="submit">{% trans "Sign in" %}</button>
-        </form>
-      <br>
-    </div>
-    <div class="col-6 offset-1">
-      <h4 class="h4 mb-3 font-weight-normal">{% trans "Don't have an account yet?" %}</h4>
-      {% blocktrans %}Our representatives will create an account for you and send you the login credentials once the first project within our tool is assigend to you.{% endblocktrans %}
-    </div>
-  </div>
+<div class="container mt-5">
+
+    <section id="info" class="text-center mb-5">
+        <img src="{% static 'img/logo.png' %}" alt="Tool Logo" width="200" class="mb-3 img-circle">
+        <h2 class="display-4 text-center">Projektmanagement-Tool</h2>
+        <p class="lead">{% blocktrans %}Willkommen bei Twayn, dem Projektmanagement-Tool. <br> Hier können Sie ganz einfach Projektanfragen stellen und wertvolles Feedback zu bestehenden Projekten geben. <br> Unser engagiertes Team verwaltet alle Ihre Projekte über dieses Tool, sodass Sie jederzeit den Überblick behalten und direkten Kontakt zu Ihrem dedizierten Projektteam haben.{% endblocktrans %}</p>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="text-center mb-5">
+        <p class="lead fw-bold">{% blocktrans %}Für Anfragen kontaktieren Sie uns bitte unter:{% endblocktrans %}</p>
+        <p class="h1 fw-bold"><i class="far fa-envelope"></i> info@software-design.de</p>
+        <p class="h1 fw-bold"><i class="far fa-phone"></i> +1 234 567 890</p>
+    </section>
+
+    <!-- How To Section -->
+    <section id="howto" class="mb-5">
+      <h2 class="display-5 text-center">{% trans "So nutzen Sie Twayn" %}</h2>
+      <p class="text-center">{% trans "Mit unserem Projektmanagement-Tool können Sie einfach und effizient Ihre Projekte verwalten. Hier ist, wie es funktioniert:" %}</p>
+      <div class="row">
+          <div class="col-md-6 d-flex align-items-stretch">
+              <div class="card mb-3">
+                  <div class="card-body">
+                      <h5 class="card-title fw-bold">{% trans "Projektanfragen senden" %}</h5>
+                      <p class="card-text">{% trans "Stellen Sie neue Projektanfragen direkt über das Tool. Unser Team wird Ihre Anfrage umgehend bearbeiten und Sie über den Fortschritt informieren." %}</p>
+                  </div>
+              </div>
+          </div>
+          <div class="col-md-6 d-flex align-items-stretch">
+              <div class="card mb-3">
+                  <div class="card-body">
+                      <h5 class="card-title fw-bold">{% trans "Feedback zu bestehenden Projekten" %}</h5>
+                      <p class="card-text">{% trans "Geben Sie direkt in Twayn Feedback zu Ihren laufenden Projekten. Ihr Feedback hilft uns, die Projekte nach Ihren Wünschen anzupassen und zu verbessern." %}</p>
+                  </div>
+              </div>
+          </div>
+          <div class="col-md-6 d-flex align-items-stretch">
+              <div class="card mb-3">
+                  <div class="card-body">
+                      <h5 class="card-title fw-bold">{% trans "Projektmanagement" %}</h5>
+                      <p class="card-text">{% trans "Behalten Sie den Überblick über alle Ihre Projekte. Verfolgen Sie den Fortschritt, sehen Sie wichtige Meilensteine und bleiben Sie stets informiert." %}</p>
+                  </div>
+              </div>
+          </div>
+          <div class="col-md-6 d-flex align-items-stretch">
+              <div class="card mb-3">
+                  <div class="card-body">
+                      <h5 class="card-title fw-bold">{% trans "Kontakt zum Projektteam" %}</h5>
+                      <p class="card-text">{% trans "Nehmen Sie direkten Kontakt zu Ihrem Projektteam auf. Stellen Sie Fragen, klären Sie Details und erhalten Sie Unterstützung bei Ihren Projekten." %}</p>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
+
+  <!-- Teams Section -->
+  <section id="teams">
+      <h2 class="display-5 text-center">{% trans "Unser Team" %}</h2>
+      <div class="row">
+          {% for team in teams.all %}
+          <div class="col-md-4 mb-4">
+              <div class="card">
+                  <div class="card-body">
+                      <h5 class="card-title fw-bold">{{ team.name }}</h5>
+                      <ul class="list-group list-group-flush">
+                        {% for member in team.members.all %}
+                        <li class="list-group-item d-flex align-items-center">
+                            {% if member.picture %}
+                            <img src="{{ member.picture.url }}" width="40" class="rounded-circle me-2" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ member.user.get_full_name }}">
+                            {% else %}
+                            <img src="https://software-design.de/static/img/team/unknown.png" alt="{{ member.user.get_full_name }}" class="rounded-circle me-2" width="40">
+                            {% endif %}
+                            <div>{{ member.user.get_full_name }} <small>({{ member.get_role_display }})</small></div>
+                        </li>
+                        {% endfor %}
+                      </ul>
+                  </div>
+              </div>
+          </div>
+          {% endfor %}
+      </div>
+  </section>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
-  <script nonce="{{ request.csp_nonce }}">
+<script nonce="{{ request.csp_nonce }}">
     document.querySelector('button[type=submit]').addEventListener('click', function(event) {
-      let element = event.target;
-      element.disabled = true;
-      element.innerHTML = '<i class="far fa-spinner fa-spin"></i> {% trans "Fetching project data..." %}';
-      element.form.submit();
+        let element = event.target;
+        element.disabled = true;
+        element.innerHTML = '<i class="far fa-spinner fa-spin"></i> {% trans "Fetching project data..." %}';
+        element.form.submit();
     });
-  </script>
+</script>
 {% endblock %}

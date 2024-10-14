@@ -13,7 +13,7 @@
       <meta name="author" content="SD Software-Design GmbH" />
       <link rel="icon" href="/static/favicon.ico">
     {% endblock %}
-
+    <script src="/static/js/base.js"></script>
     <link rel="icon" href="/favicon.ico" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -53,7 +53,7 @@
                 <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                   <li><a class="dropdown-item" href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}">{% trans "Overview" %}</a></li>
                   <li><hr class="dropdown-divider"></li>
-                  {% if localProject.enableMilestones %}
+                  {% if localProject.enable_milestones %}
                   <li><a class="dropdown-item" href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/milestones/">{% trans "Milestones / Kanban Board" %}</a></li>
                   {% endif %}
                   <li><a class="dropdown-item" href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/">{% trans "Browse all Issues" %}</a></li>
@@ -69,7 +69,7 @@
               </li>
               {% endif %}
 
-              {% if wikiPages and localProject.enableDocumentation  %}
+              {% if wikiPages and localProject.enable_documentation  %}
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/" id="navbarWikiDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <i class="fa fa-book"></i> {% trans "Documentation" %}
@@ -84,6 +84,7 @@
               </li>
               {% endif %}
             </ul>
+            <li><a href="{% url 'github_issues' localProject.name %}">{{ localProject.name }}</a></li>
             <ul class="navbar-nav float-end mb-2 mb-lg-0">
               {% if request.user.is_staff and localProject %}
               <li class="nav-item">
@@ -121,48 +122,46 @@
         {% block content %}
         {% endblock %}
           <br>
-          <hr>  
+          <hr>
           &copy; {% now "Y" %}
           <p class="float-end">powered by <a href="https://gitlab.com/software-design-public/twayn-devops-customer-view" class="text-muted" target="_blank"><strong>Twayn</strong> - DevOps Customer View</a></p>
           <br><br>
         </div>
     {% endblock %}
-    
+
     {% block footer %}
     {% endblock %}
-      
+
     {% block modals %}
-    <form method="GET" action="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/print/">
-        <div class="modal" id="exportModal" tabindex="-1" role="dialog">
-          <div class="modal-dialog" role="document">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">{% trans "Export project overview" %}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div class="modal-body">
-                {% trans "This export will generate an overview of all issues updated since the date you chose below and the sum of time spent since this day." %}<br><br>
-                <div class="row">
-                  <div class="col-6">
-                    <label>{% trans "Starting" %}</label>
-                    <input type="date" id="exportStartDate" name="start" class="form-control" value="{{ now|first_day_of_previous_month|date:"Y-m-d" }}">
-                  </div>
-                  <div class="col-6">
-                    <label>{% trans "Until" %}</label>
-                    <input type="date" id="exportEndDate" name="end" class="form-control" value="{{ now|last_day_of_previous_month|date:"Y-m-d" }}">
-                  </div>
+        <form method="GET" action="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/print/">
+            <div class="modal fade" id="exportModal" tabindex="-1" role="dialog" aria-labelledby="exportModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="exportModalLabel">{% trans "Projektübersicht exportieren" %}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                        </div>
+                        <div class="modal-body">
+                            {% trans "Dieser Export erstellt eine Übersicht aller seit dem gewählten Datum aktualisierten Issues und der seitdem aufgewendeten Gesamtzeit." %}<br><br>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label for="exportStartDate">{% trans "Beginn" %}</label>
+                                    <input type="date" id="exportStartDate" name="start" class="form-control" value="{{ now|first_day_of_previous_month|date:"Y-m-d" }}">
+                                </div>
+                                <div class="col-6">
+                                    <label for="exportEndDate">{% trans "Ende" %}</label>
+                                    <input type="date" id="exportEndDate" name="end" class="form-control" value="{{ now|last_day_of_previous_month|date:"Y-m-d" }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <input type="submit" class="btn btn-primary" id="exportButton" value="{% trans "Exportieren" %}">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Schließen" %}</button>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <input type="submit" class="btn btn-primary" id="exportButton" value="{% trans "Export" %}">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Close" %}</button>
-              </div>
             </div>
-          </div>
-        </div>
-    </form>
+        </form>
     {% endblock %}
 
     {% block base_js %}

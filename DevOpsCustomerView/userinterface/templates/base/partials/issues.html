@@ -10,15 +10,15 @@
                 <small class="float-end">
                     {% if issue.time_stats_human_time_estimate %}
                         <i class="far fa-history"></i>
-                        <strong>{{ issue.time_stats_human_time_estimate }}</strong> {% trans 'planned' %}
+                        <strong>{{ issue.time_stats_human_time_estimate }}</strong> {% trans 'geplant' %}
                     {% endif %}
                     {% if issue.time_stats_human_total_time_spent %}
-                        <i class="far fa-clock ms-2"></i> 
-                        <strong>{{ issue.time_stats_human_total_time_spent }}</strong> {% trans 'spent' %}
+                        <i class="far fa-clock ms-2"></i>
+                        <strong>{{ issue.time_stats_human_total_time_spent }}</strong> {% trans 'verbraucht' %}
                     {% endif %}
                     {% if issue.time_stats_human_time_estimate and issue.time_stats_human_total_time_spent %}
                         <strong>
-                            <i class="far fa-stopwatch ms-2"></i> 
+                            <i class="far fa-stopwatch ms-2"></i>
                             {% widthratio issue.time_stats_total_time_spent|intval issue.time_stats_time_estimate|intval 100 %}%
                         </strong>
                     {% endif %}
@@ -26,37 +26,37 @@
                 <strong {% if issue.isOpen == False %}class="text-muted"{% endif %}>
                     <span class="badge bg-{% if issue.state != 'closed' %}primary{% else %}secondary{% endif %} rounded-pill">{{ issue.user_notes_count }} <i class="far fa-comments"></i></span>
                     {% if not large %}<br>{% endif %}
-                    {{ issue.title  }}
+                    {{ issue.title }}
                 </strong><br>
                 <div class="row">
-                <div class="text-muted {% if large %}col-6{% else %}col-12{% endif %}">
-                    #{{ issue.iid }} -
-                    {% if issue.isOpen %}
-                        <i class="far fa-folder-open"></i> {% trans 'Open' %}, {% trans 'updated' %}
-                        {{ issue.updated_at|date:settings.DATE_FORMAT }}
-                    {% else %}
-                        <i class="far fa-folder"></i> {% trans 'Closed' %} {% trans 'on' %}
-                        {{ issue.closed_at|date:settings.DATE_FORMAT }}
-                    {% endif %}
-                    {% if issue.milestone and milestones != False and localProject.enableMilestones == True %}
-                    {% if large %}<br>{% else %} - {% endif %}<i class="fa far fa-tasks"></i> {{ issue.milestone.title }}
-                    {% endif %}
-                </div>
-                <div class="text-muted text-end {% if large %}col-6{% else %}col-12{% endif %}">
-                    {% for label in issue.labels %}
-                        {% with names=label|split:"::" %}
-                            <span class="badge bg-{% if issue.state != 'closed' %}primary{% else %}secondary{% endif %}">{% if names|length > 1 %}{{ names.0|capfirst }}: {{ names.1|capfirst }}{% else %}{{ names.0|capfirst }}{% endif %}</span>
-                        {% endwith %}
-                    {% endfor %}
-                </div>
+                    <div class="text-muted {% if large %}col-6{% else %}col-12{% endif %}">
+                        #{{ issue.iid }} -
+                        {% if issue.isOpen %}
+                            <i class="far fa-folder-open"></i> {% trans 'Offen' %}, {% trans 'aktualisiert' %}
+                            {{ issue.updated_at|date:settings.DATE_FORMAT }}
+                        {% else %}
+                            <i class="far fa-folder"></i> {% trans 'Geschlossen' %} {% trans 'am' %}
+                            {{ issue.closed_at|date:settings.DATE_FORMAT }}
+                        {% endif %}
+                        {% if issue.milestone and milestones != False and localProject.enable_milestones == True %}
+                            {% if large %}<br>{% else %} - {% endif %}<i class="fa far fa-tasks"></i> {{ issue.milestone.title }}
+                        {% endif %}
+                    </div>
+                    <div class="text-muted text-end {% if large %}col-6{% else %}col-12{% endif %}">
+                        {% for label in issue.labels %}
+                            {% with names=label|split:"::" %}
+                                <span class="badge bg-{% if issue.state != 'closed' %}primary{% else %}secondary{% endif %}">{% if names|length > 1 %}{{ names.0|capfirst }}: {{ names.1|capfirst }}{% else %}{{ names.0|capfirst }}{% endif %}</span>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
                 </div>
             </li>
-        </a> 
+        </a>
     {% endif %}
 {% endfor %}
 
 {% if issues|length == 0 %}
 <br>
-    {% trans "There are no issues - they will be added during the ongoing project." %}
+    {% trans "Es gibt keine Tickets - sie werden während des laufenden Projekts hinzugefügt." %}
 <br>
 {% endif %}

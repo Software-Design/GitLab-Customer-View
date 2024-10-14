@@ -1,27 +1,43 @@
 {% load embellish %}
 {% load i18n %}
-<div class="row">
-    {% if employee.avatar and employee.avatar.url %}
-    <div class="col-3 text-end">
-        {% if employee.homepage %}<a href="{{ employee.homepage }}" target="_blank" class="nolink">{% endif %}
-            <img src="{{ employee.avatar.url }}" width="75">
-        {% if employee.homepage %}</a>{% endif %}
-    </div>
-    {% endif %}
-    <div class="col-9">
-        {% if employee.homepage %}<a href="{{ employee.homepage }}" target="_blank" class="text-decoration-none text-secondary nolink">{% endif %}
-        <strong class="nolink">{% if employee %}{{ employee.name }}{% else %}{{ user.name }}{% endif %} {% if employee.homepage %}&raquo;{% endif %}</strong><br>
-        {% if employee.homepage %}</a>{% endif %}
+<div class="col-md-12 pb-3">
+    <div class="team__members">
+        {% for team in localProject.teams.all %}
+            {% for member in team.members.all %}
+                <div class="team__member d-flex justify-content-around align-items-center mb-3">
+                    <div class="col-2 me-1">
+                        {% if member.picture %}
+                            {% if member.homepage %}
+                                <a href="{{ member.homepage }}" target="_blank" class="nolink">
+                            {% endif %}
+                                <img src="{{ member.picture.url }}" width="50" class="rounded-circle team__member-avatar">
+                            {% if member.homepage %}
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle team__member-avatar">
+                        {% endif %}
+                    </div>
+                    <div class="col-10">
+                        {% if member.homepage %}
+                            <a href="{{ member.homepage }}" target="_blank" class="text-decoration-none text-secondary nolink">
+                        {% endif %}
+                            <strong class="nolink">
+                                {{ member.user.get_full_name }} {% if member.homepage %}&raquo;{% endif %}
+                            </strong><br>
+                        {% if member.homepage %}
+                            </a>
+                        {% endif %}
 
-        {% if employee.email %}
-            <i class="fa far fa-envelope"></i> &nbsp;<a href="mailto:{{ employee.email }}">{{ employee.email }}</a><br>
-        {% endif %}
-        {% if employee.phone %}
-            <i class="fa far fa-phone"></i> &nbsp;<a href="tel:{{ employee.phone }}">{{ employee.phone }}</a>
-        {% endif %}
-        {% if not employee %}
-            @{{ user.username }}<br>
-            <a href="{{ user.web_url }}" target="_blank"><i class="fab fa-gitlab"></i> {% trans "Profile" %}</a>
-        {% endif %}
+                        {% if member.user.email %}
+                            <i class="far fa-envelope"></i> &nbsp;<a href="mailto:{{ member.user.email }}">{{ member.user.email }}</a><br>
+                        {% endif %}
+                        {% if member.phone %}
+                            <i class="far fa-phone"></i> &nbsp;<a href="tel:{{ member.phone }}">{{ member.phone }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endfor %}
     </div>
 </div>

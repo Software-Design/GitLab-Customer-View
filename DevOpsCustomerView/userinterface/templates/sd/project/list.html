@@ -1,0 +1,23 @@
+{% extends base %}
+{% load i18n %}
+{% load dates %}
+{% load template %}
+
+{% block content %}
+
+<input type="text" id="searchInput" class="form-control float-end w-25 mt-1" placeholder="{% trans 'Projekte suchen' %}">
+<h1>{% trans "Alle Ihre Projekte bei uns" %}</h1>
+  <br>
+  <div id="projectsHolder">
+  {% for p in activeProjects %}
+    {% with t='partials/project'|template %}
+      {% include t with p=p %}
+    {% endwith %}
+  {% endfor %}
+  {% for p in inactiveProjects %}
+    {% with t='partials/project'|template %}
+      {% include t with p=p %}
+    {% endwith %}
+  {% endfor %}
+  </div>
+{% endblock %}

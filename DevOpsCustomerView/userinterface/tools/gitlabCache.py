@@ -16,7 +16,7 @@ from .wikiParser import parseStructure
 from userinterface.tools.repositoryServiceInterface import RepositoryServiceInterface, remoteStdProject, remoteStdMilestone, remoteStdIssue, remoteStdUser, remoteStdMergeRequest, remoteStdNote
 
 class gitlabServiceCache(RepositoryServiceInterface):
-    def loadProject(self, projectObject: Project, accessToken: str) -> dict:
+    def loadProject(self, projectObject: Project, access_token: str) -> dict:
         """
         Loads the project from gitlab and all its information and returns them
 
@@ -26,13 +26,13 @@ class gitlabServiceCache(RepositoryServiceInterface):
                 or { 'localProject': { 'name': 'projectName' }, 'error': 'An error occured: SomeException' }
         """
 
-        id = f'glp_{projectObject.projectIdentifier}'
+        id = f'glp_{projectObject.project_identifier}'
 
         project = cache.get(id)
         if not project:
             try:
-                gl = gitlab.Gitlab(url=settings.GITLAB_URL, private_token=accessToken)
-                glProject = gl.projects.get(projectObject.projectIdentifier)
+                gl = gitlab.Gitlab(url=settings.GITLAB_URL, private_token=access_token)
+                glProject = gl.projects.get(projectObject.project_identifier)
             except Exception as e:
                 return {
                     'localProject': {'name': projectObject.name},
@@ -88,14 +88,14 @@ class gitlabServiceCache(RepositoryServiceInterface):
         """
 
         project = self.getInstance(projectObject, tokenOrInstance)
-        id = f'glp_{projectObject.projectIdentifier}_labels'
+        id = f'glp_{projectObject.project_identifier}_labels'
 
         labels = cache.get(id)
         if not labels:
             labels = []
             glLabels = project.labels.list()
             for label in glLabels:
-                if not projectObject.labelPrefix or label.name.startswith(projectObject.labelPrefix):
+                if not projectObject.label_prefix or label.name.startswith(projectObject.label_prefix):
                     labels.append(label)
 
             cache.set(id, labels, settings.CACHE_PROJECTS)
@@ -117,7 +117,7 @@ class gitlabServiceCache(RepositoryServiceInterface):
         """
 
         project = self.getInstance(projectObject, tokenOrInstance)
-        id = f'glp_{projectObject.projectIdentifier}_releases'
+        id = f'glp_{projectObject.project_identifier}_releases'
 
         glReleases = []
         labels = cache.get(id)
@@ -141,11 +141,11 @@ class gitlabServiceCache(RepositoryServiceInterface):
             [ gitlab.v4.objects.milestones.ProjectMilestone, ... ]
         """
 
-        if not projectObject.enableMilestones:
+        if not projectObject.enable_milestones:
             return []
 
         project = self.getInstance(projectObject, tokenOrInstance)
-        id = 'glp_' + projectObject.projectIdentifier + '_milestones'
+        id = 'glp_' + projectObject.project_identifier + '_milestones'
         if iid:
             id = f'{id}_{str(iid)}'
 
@@ -216,7 +216,7 @@ class gitlabServiceCache(RepositoryServiceInterface):
 
         project = self.getInstance(projectObject, tokenOrInstance)
 
-        id = f'glp_{projectObject.projectIdentifier}_issues'
+        id = f'glp_{projectObject.project_identifier}_issues'
         if iid:
             id = f'{id}_{str(iid)}'
         elif milestone:
@@ -377,14 +377,14 @@ class gitlabServiceCache(RepositoryServiceInterface):
         @return:
             Either a single wiki page if slug is set or all pages of the project in a list
         """
-        if not projectObject.enableDocumentation:
+        if not projectObject.enable_documentation:
             return False
 
         project = self.getInstance(projectObject, tokenOrInstance)
         if slug:
-            id = 'glp_' + projectObject.projectIdentifier + '_' + slug
+            id = 'glp_' + projectObject.project_identifier + '_' + slug
         else:
-            id = 'glp_' + projectObject.projectIdentifier
+            id = 'glp_' + projectObject.project_identifier
 
         page = cache.get(id)
         if not page:
@@ -407,7 +407,7 @@ class gitlabServiceCache(RepositoryServiceInterface):
             body['milestone_id'] = milestoneIdentifier
 
         issue = project.issues.create(body)
-        cache.delete('glp_' + projectObject.projectIdentifier + '_issues_' + str(issue.iid))
+        cache.delete('glp_' + projectObject.project_identifier + '_issues_' + str(issue.iid))
 
         return True
 
@@ -416,7 +416,7 @@ class gitlabServiceCache(RepositoryServiceInterface):
 
         project.issues.get(id=issue).notes.create({'body': body})
 
-        id = 'glp_' + projectObject.projectIdentifier + '_issues_' + str(issue)
+        id = 'glp_' + projectObject.project_identifier + '_issues_' + str(issue)
         cache.delete(id)
 
         return True
@@ -441,7 +441,7 @@ class gitlabServiceCache(RepositoryServiceInterface):
 
         if type(tokenOrInstance) == str:
             gl = gitlab.Gitlab(url=settings.GITLAB_URL, private_token=tokenOrInstance)
-            project = gl.projects.get(projectObject.projectIdentifier)
+            project = gl.projects.get(projectObject.project_identifier)
         else:
             project = tokenOrInstance
 

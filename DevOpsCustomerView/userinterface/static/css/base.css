@@ -1,7 +1,37 @@
+:root {
+    --primary-color: #ff8128;
+}
+
+
 .progress {
     height: 2rem;
 }
 
 .nolink {
     text-decoration: none !important;
+}
+
+.container {
+    min-height: calc(100vh - 250px); /* Adjust 100px based on your footer height */
+    padding-bottom: 50px; /* Adjust based on your footer height */
+}
+
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 50px; /* Adjust based on your footer height */
+    background-color: #f8f9fa; /* Optional: Add background color */
+    text-align: center;
+    padding: 10px 0;
+}
+
+.btn--custom-border {
+    border-color: #ff8128 !important;
+
+}
+
+.custom-dropdown {
+    width: 20vw;
+    margin-top: 2rem !important;
 }

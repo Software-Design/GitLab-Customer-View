@@ -15,7 +15,7 @@ class RepositoryServiceInterface(metaclass=abc.ABCMeta):
                 NotImplemented)
 
     @abstractmethod
-    def loadProject(self, projectObject: Project, accessToken: str) -> dict:
+    def loadProject(self, projectObject: Project, access_token: str) -> dict:
         """Load in the data set"""
         raise NotImplementedError
 

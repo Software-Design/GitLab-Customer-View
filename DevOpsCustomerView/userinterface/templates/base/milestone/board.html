@@ -11,14 +11,13 @@
 		<div class="col-12">
 
 			<div class="btn-group float-end" role="group">
-				{% if localProject.enableTicketCreation %}
-				<a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Create Ticket" %}</a>
+				{% if localProject.enable_ticket_creation %}
+				<a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Ticket erstellen" %}</a>
 				{% endif %}
 				{% if request.user.is_superuser %}
 				<a href="{{ remoteProject.web_url }}/-/milestones" class="btn btn-outline-primary" target="_blank"><i class="fab fa-gitlab"></i></a>
 				{% endif %}
 			</div>
-			
 				<h1>{{ milestone.title }}</h1>
 				<h3><i class="fa far fa-archive"></i> {{ localProject.name }}
 					<span class="float-end">
@@ -117,7 +116,6 @@
 				</div>
 		</div>
 	</div>
-	
 {% endblock %}
 
 {% block extra_js %}

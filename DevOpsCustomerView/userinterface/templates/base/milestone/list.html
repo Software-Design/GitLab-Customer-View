@@ -10,13 +10,13 @@
     <div class="col-12">
 
         <div class="btn-group float-end" role="group">
-          {% if localProject.enableTicketCreation %}
-          <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Create Ticket" %}</a>
+          {% if localProject.enable_ticket_creation %}
+          <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Ticket erstellen" %}</a>
           {% endif %}
-          {% if localProject.enableMilestones %}
+          {% if localProject.enable_milestones %}
           <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/milestones/" class="btn btn-outline-primary"><i class="fa far fa-tasks"></i> {% trans "Milestones" %}</a>
           {% endif %}
-          {% if wikiPages and localProject.enableDocumentation  %}
+          {% if wikiPages and localProject.enable_documentation  %}
           <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/documentation/" class="btn btn-outline-primary"><i class="fa far fa-book"></i> {% trans "Documentation" %}</a>
           {% endif %}
           {% if request.user.is_superuser %}
@@ -31,7 +31,7 @@
             <h4>{% trans 'Expired Milestones' %}</h4>
             <hr>
             <ul class="list-group">
-            {% for milestone in allMilestones %} 
+            {% for milestone in allMilestones %}
               {% if milestone.isActive == False and milestone.due_date or milestone.due_date and milestone.due_date < now %}
                 {% with t='partials/milestones'|template %}
                   {% include t %}
@@ -46,7 +46,7 @@
             <h4>{% trans 'Current Milestones' %}</h4>
             <hr>
             <ul class="list-group">
-            {% for milestone in allMilestones %} 
+            {% for milestone in allMilestones %}
               {% if milestone.isActive %}
                 {% if not milestone.start_date or milestone.start_date <= now and milestone.due_date >= now %}
                   {% with t='partials/milestones'|template %}

@@ -2,7 +2,6 @@ venv/
 *.pyc
 .gitmodules
 .DS_Store
-.gitmodules
 uploads/
 .coverage
 coverage.xml
@@ -11,3 +10,4 @@ DevOpsCustomerView/main/local.py
 report.xml
 DevOpsCustomerView/userinterface/templates/software-design
 local.py
+.vscode/

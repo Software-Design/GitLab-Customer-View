@@ -1,0 +1,95 @@
+{% extends base %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+    <section id="meeting">
+        <div class="container-lg">
+            <div class="row">
+                <div class="col-12 col-sm-8 offset-sm-2 col-xl-3 offset-xl-0 p-0 info-box-parent">
+                    <div class="info-box">
+                        <div class="horizontal-line primary-bg overlay-xs height-xs rotated mt-3 p-3">
+                            <div class="container">
+                                <h2> &nbsp; Unser Angebot</h2>
+                            </div>
+                        </div>
+                        <div class="secondary-bg overlay-xs secondary-txt p-4 pt-5">
+                            <div class="item-itext row">
+                                <div class="icon col-3">
+                                    <i class="far fa-clock"></i>
+                                </div>
+                                <div class="text col-9">
+                                    <strong>Angebote sind 14 Tage ab Angebotsdatum bindend.</strong>
+                                </div>
+                            </div>
+                            <div class="item-itext row">
+                                <div class="icon col-3">
+                                    <i class="far fa-envelope"></i>
+                                </div>
+                                <div class="text col-9">
+                                    <strong>Gerne senden wir Ihnen eine Kopie als PDF.</strong>
+                                </div>
+                            </div>
+                            <div class="item-itext row">
+                                <div class="icon col-3">
+                                    <i class="far fa fa-phone"></i>
+                                </div>
+                                <div class="text col-9">
+                                    <strong>Bei Rückfragen stehen wir Ihnen gerne zur Verfügung</strong>
+                                </div>
+                            </div>
+                            <br>
+                        </div>
+                        <div class="horizontal-line primary-bg overlay-xs height-xs rotated"></div>
+                    </div>
+                </div>
+                <div class="col-md-8 offset-md-1 text-justify">
+                    <br>
+                    <h2>{{ order_result.header }}</h2>
+                    <br>
+                    <div class="row">
+                        <div class="col-md-7">
+                            <strong>{{ order_result.address | linebreaksbr }}</strong>
+                            <br>
+                        </div>
+                        <div class="col-md-5 text-end">
+                            <h4 class="text-end">{{ order_result.orderNumber | linebreaksbr }}</h4>
+                            <h5>{{ order_result.orderDate | date:"d.m.Y" }}</h5>
+                            <br>
+                            <table class="float-end small">
+                                <tr>
+                                    <td>Angebot herunterladen:</td>
+                                    <td width="140"><i class="far fa-download"></i> <a href="{{ request.get_full_path }}&download=true">PDF</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Angebot bindend bis:<br><br></td>
+                                    <td width="140">{{ order_result.orderDate|date:"d.m.Y" }}<br><br></td>
+                                </tr>
+                                <tr>
+                                    <td>Ihre Kundennummer:</td>
+                                    <td>{{ order_result.contact.customerNumber }}</td>
+                                </tr>
+                                {% if order_result.contact.taxNumber %}
+                                <tr>
+                                    <td>Ihre Steuernummer:</td>
+                                    <td>{{ order_result.contact.taxNumber }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if order_result.contact.vatNumber %}
+                                <tr>
+                                    <td>Ihre Ust.-Id.:</td>
+                                    <td>{{ order_result.contact.vatNumber }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    <br>
+                    <h5>{{ order_result.header }}</h5>
+                    {{ order_result.headText | safe }}
+                    <br>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

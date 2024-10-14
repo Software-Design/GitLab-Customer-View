@@ -1,0 +1,84 @@
+{% extends base %}
+{% load i18n %}
+{% load static %}
+{% load template %}
+{% load dates %}
+
+{% block content %}
+
+<h1>{{ localProject.name }}</h1>
+  {{ remoteProject.description }}
+  <br><br><br>
+  <div class="row">
+    <div class="col-3">
+      <img class="w-100" src="{% if localProject.image %}{{ localProject.image.url }}{% else %}{{ remoteProject.avatar_url }}{% endif %}" alt="{% trans "No image found" %}">
+      <br><br><br>
+      Wenn Sie uns Dateien oder Dokumente übermitteln möchten nutzen Sie gerne unseren verschlüsselten Dateitransfer:
+      <br><br>
+      <div class="btn-group" role="group">
+        <a href="https://transfer.software-design.de" class="btn btn-outline-primary" target="_blank"><i class="fa far fa-upload"></i> Dateien hochladen</a>
+      </div>
+    </div>
+    <div class="col-9">
+        <h3>{% trans "Documents & Downloads" %}</h3>
+        <br>
+        <div class="row">
+          {% if projectReleases|length > 0 %}
+            <h4>{% trans "Releases" %}</h4>
+            <ul>
+              {% for release in projectReleases %}
+                  <li class="list-group-item">
+                      <small class="float-end">
+                          <span class="badge bg-secondary rounded-pill">{{ release.tag_name }}</span>
+                      </small>
+                      <strong>
+                          {{ release.name }}
+                      </strong><br>
+                      <div class="row">
+                        <div class="text-muted col-6">
+                            {{ release.description }}
+                        </div>
+                        <div class="text-muted text-end col-6">
+                            {{ release.released_at|parse_iso|date:settings.DATE_FORMAT }}
+                        </div>
+                        <div class="col-12">
+                          <br>
+                          <ul>
+                            {% for asset in  release.assets.sources %}
+                              <li><a href="{{ asset.url }}">{% trans "Download Source" %} ({{ asset.format }}) &raquo;</a></li>
+                            {% endfor %}
+                          </ul>
+                          <br>
+                          <ul>
+                            {% for link in  release.assets.links %}
+                              <li><a href="{{ link.url }}" target="_blank">{{ link.name }}</a></li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+                  </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% for type, label in fileTypes.DownloadableFileTypes.choices %}
+            {% with relatedFiles=localProject.downloadablefile_set|in_category:type %}
+              {% if relatedFiles|length > 0 %}
+              <div class="box">
+                <div class="col-12">
+                  <br>
+                  <h4>{{ label }}</h4>
+                  {% with t='partials/files'|template %}
+                    {% include t with files=relatedFiles%}
+                  {% endwith %}
+                </div>
+              </div>
+              {% endif %} 
+            {% endwith %}
+          {% endfor %}
+        </div>
+        <br>
+    </div>
+  </div>
+  
+{% endblock %}

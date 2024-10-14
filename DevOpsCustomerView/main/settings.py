@@ -98,6 +98,11 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# SevDesk API settings
+SEVDESK_API_URL = "https://my.sevdesk.de/api/v1/"
+SEVDESK_TOKEN = "dd56e88ddf7db9f4d1ca1c4fbd4675d"
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -113,8 +118,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-MEDIA_ROOT = "uploads/"
-MEDIA_URL = "uploads/"
+MEDIA_ROOT = BASE_DIR / "uploads"
+MEDIA_ROOT = BASE_DIR / "uploads"
+MEDIA_URL = "/uploads/"
 
 STATIC_URL = "static/"
 LOGIN_URL = "/"
@@ -130,13 +136,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
 CSP_DEFAULT_SRC = "'none'"
-CSP_STYLE_SRC = "'self'"
-CSP_SCRIPT_SRC = "'self'"
-CSP_FONT_SRC = "'self'"
 CSP_IMG_SRC = "data: 'self' https://gitlab.com"
 CSP_OBJECT_SRC = "blob: data: 'self'"
 CSP_BASE_URI = "'none'"
 CSP_INCLUDE_NONCE_IN = ["script-src"]
+CSP_STYLE_SRC = "'self' 'unsafe-inline' https://software-design.de"
+CSP_SCRIPT_SRC = "'self' 'unsafe-inline' https://software-design.de"
+CSP_IMG_SRC = "'self' data: https://software-design.de"
+CSP_FONT_SRC = "'self' https://software-design.de"
 
 # set to True to use eMail System
 SEND_MAIL = False
@@ -159,7 +166,7 @@ JAZZMIN_SETTINGS = {
     "login_logo_dark": None,
     "site_logo_classes": "img-circle",
     "site_icon": None,
-    "welcome_sign": "Welcome to the Twayn PM Tool",
+    "welcome_sign": "Willkommen im Twayn PM Tool",
     "copyright": "SD Software-Design GmbH",
     "user_avatar": None,
     "usermenu_links": [
@@ -174,6 +181,85 @@ JAZZMIN_SETTINGS = {
     "custom_js": None,
     "use_google_fonts_cdn": False,
     "show_ui_builder": False,
+    "topmenu_links": [
+        {
+            "name": "",
+            "url": "/",
+            "permissions": ["auth.view_user"],
+            "icon": "fas fa-home",
+        },
+        {"name": "Nutzer", "model": "auth.User"},
+        {
+            "name": "Projekte",
+            "url": "admin:userinterface_project_changelist",
+            "permissions": ["auth.view_user"],
+        },
+        {"app": "userinterface"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+    "order_with_respect_to": [
+        "userinterface.Company",
+        "userinterface.CustomerUser",
+        "userinterface.Project",
+        "userinterface.Team",
+        "userinterface.TeamMember",
+        "auth",
+    ],
+    "custom_links": {
+        "Unternehmen": [
+            {
+                "name": "Unternehmen",
+                "url": "admin:userinterface_company_changelist",
+                "icon": "fas fa-building",
+            },
+            {
+                "name": "Kundenbenutzer",
+                "url": "admin:userinterface_customeruser_changelist",
+                "icon": "fas fa-user-tie",
+            },
+        ],
+        "Projekte": [
+            {
+                "name": "Projekte",
+                "url": "admin:userinterface_project_changelist",
+                "icon": "fas fa-project-diagram",
+            },
+        ],
+        "Teams": [
+            {
+                "name": "Teams",
+                "url": "admin:userinterface_team_changelist",
+                "icon": "fas fa-users",
+            },
+            {
+                "name": "Teammitglieder",
+                "url": "admin:userinterface_teammember_changelist",
+                "icon": "fas fa-user-friends",
+            },
+        ],
+    },
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "userinterface.Company": "fas fa-building",
+        "userinterface.CustomerUser": "fas fa-user-tie",
+        "userinterface.DownloadableFile": "fas fa-file-download",
+        "userinterface.Project": "fas fa-project-diagram",
+        "userinterface.Team": "fas fa-users",
+        "userinterface.TeamMember": "fas fa-user-friends",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    "related_modal_active": True,
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "auth.user": "collapsible",
+        "auth.group": "vertical_tabs",
+    },
 }
 
 
@@ -183,13 +269,16 @@ LOCAL.PY ALWAYS OVERWRITES THESE SETTINGS
 =========================================================
 """
 
+NO_SECRET_KEY = ""
 try:
     from .local import *
 except ModuleNotFoundError:
     print("No local settings file")
 
+VERIFICATION_SECRET = NO_SECRET_KEY
+SECRET_KEY = NO_SECRET_KEY
 # if VERIFICATION_KEY is not set set it to secret key
 try:
-    VERIFICATION_SECRET
+    VERIFICATION_SECRET = ""
 except NameError:
     VERIFICATION_SECRET = SECRET_KEY

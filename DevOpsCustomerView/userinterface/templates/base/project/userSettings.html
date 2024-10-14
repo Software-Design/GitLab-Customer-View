@@ -13,8 +13,8 @@
       <form class="" method="post">
           {% csrf_token %}
           <h4 class="h4 mb-3 font-weight-normal">{% trans "Notifications" %}</h4>
-          <label for="enableNotifications" class="">{% trans "Send email notifications for changes" %}</label>
-          <input type="checkbox" name="enableNotifications" value="enable" {% if enableNotifications %} checked {% endif %}>
+          <label for="enable_notifications" class="">{% trans "Send email notifications for changes" %}</label>
+          <input type="checkbox" name="enable_notifications" value="enable" {% if enable_notifications %} checked {% endif %}>
           <br><br><br>
           <input type="submit" class="btn btn-primary float-start">
         </form>
