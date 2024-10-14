@@ -19,6 +19,7 @@
     </div>
     <div class="row g-0">
         <div class="col-md-2 d-flex align-items-center justify-content-center text-center">
+            {{ p.localProject.image }}
             {% if p.localProject.image %}
                 <a href="/project/{{ p.remoteProject.path }}/{{ p.remoteProject.id }}" class="nolink">
                     <img
@@ -27,6 +28,8 @@
                         alt="{{ p.localProject.name }}"
                     >
                 </a>
+            {% else %}
+                <p>No image available</p>
             {% endif %}
         </div>
         <div class="col-md-10">

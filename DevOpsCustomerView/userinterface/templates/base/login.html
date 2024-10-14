@@ -70,7 +70,11 @@
                       <ul class="list-group list-group-flush">
                         {% for member in team.members.all %}
                         <li class="list-group-item d-flex align-items-center">
-                            <img src="https://software-design.de/static/img/team/unknown.png" alt="{{ member.user.get_full_name }}" class="rounded-circle me-2" width="30" height="30">
+                            {% if member.picture %}
+                            <img src="{{ member.picture.url }}" width="40" class="rounded-circle me-2" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ member.user.get_full_name }}">
+                            {% else %}
+                            <img src="https://software-design.de/static/img/team/unknown.png" alt="{{ member.user.get_full_name }}" class="rounded-circle me-2" width="40">
+                            {% endif %}
                             <div>{{ member.user.get_full_name }} <small>({{ member.get_role_display }})</small></div>
                         </li>
                         {% endfor %}

@@ -1,76 +1,67 @@
-from typing import Union
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Union
 
-import github
-import re
-from datetime import datetime, date, timezone
+import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
-from gitlab.v4.objects.wikis import ProjectWiki
-from userinterface.templatetags.dates import parse_date
 from userinterface.models import Project
+from userinterface.templatetags.dates import parse_date
+from userinterface.tools.repositoryServiceInterface import (
+    RepositoryServiceInterface,
+    remoteStdIssue,
+    remoteStdMergeRequest,
+    remoteStdMilestone,
+    remoteStdNote,
+    remoteStdProject,
+    remoteStdUser,
+)
 from .timetrackingHelper import calculateTime
 from .wikiParser import parseStructure
 
-from userinterface.tools.repositoryServiceInterface import (
-    RepositoryServiceInterface,
-    remoteStdProject,
-    remoteStdMilestone,
-    remoteStdIssue,
-    remoteStdUser,
-    remoteStdMergeRequest,
-    remoteStdNote,
-)
-
-"""
-    To get ID of repository from GitHub:
-        HTML Source: <meta name="octolytics-dimension-repository_id" content="{ID}}">
-"""
+logger = logging.getLogger(__name__)
 
 
 class githubServiceCache(RepositoryServiceInterface):
-    def loadProject(self, projectObject: Project, access_token: str) -> dict:
+    def loadProject(self, projectObject: Project, access_token: str) -> Dict[str, Any]:
         """
-        Loads the project from github and all its information and returns them
+        Loads the project from GitHub and all its information and returns them.
 
         @return:
             dict:
-                Either { 'remoteProject': GitHubProjectObject, 'localProject': Project, 'allMilestones': list or False, 'mostRecentIssues': list[:5], 'wikiPages': list or False, 'projectLabels':  }
-                or { 'localProject': { 'name': 'projectName' }, 'error': 'An error occured: SomeException' }
+                Either { 'remoteProject': GitHubProjectObject, 'localProject': Project, 'allMilestones': list or False, 'mostRecentIssues': list[:5], 'wikiPages': list or False, 'projectLabels': list, 'projectReleases': list, 'lastUpdated': datetime }
+                or { 'localProject': { 'name': 'projectName' }, 'error': 'An error occurred: SomeException' }
         """
+        cache_id = f"glh_{projectObject.project_identifier}"
+        project = cache.get(cache_id)
 
-        id = f"glh_{projectObject.project_identifier}"
-
-        project = cache.get(id)
         if not project:
             try:
-                # Only for self hosted github
-                # gh = Github(base_url=settings.GITHUB_URL, login_or_token=access_token)
-                gh = github.Github(access_token)
-                # full_name_or_id, (str, int)
-                ghProject = gh.get_repo(int(projectObject.project_identifier))
-                ghProject.path = "GitHub"
+                gh_project = self._fetch_github_project(
+                    projectObject.project_identifier, access_token
+                )
             except Exception as e:
                 return {
                     "localProject": {"name": projectObject.name},
-                    "error": _("An error occurred 123") + ": " + str(e),
+                    "error": _("An error occurred") + ": " + str(e),
                 }
 
             project = {
-                "remoteProject": self.loadRemoteProject(projectObject, ghProject),
-                "remoteInstance": ghProject,
+                "remoteProject": self.loadRemoteProject(projectObject, gh_project),
+                "remoteInstance": gh_project,
                 "localProject": projectObject,
-                "allMilestones": self.loadMilestones(projectObject, ghProject),
-                "mostRecentIssues": self.loadIssues(projectObject, ghProject)[:5],
+                "allMilestones": self.loadMilestones(projectObject, access_token),
+                "mostRecentIssues": self.loadIssues(projectObject, access_token)[:5],
                 "wikiPages": [],  # parseStructure(loadWikiPage(projectObject, ghProject)),
-                "projectLabels": self.loadLabels(projectObject, ghProject),
-                "projectReleases": self.loadReleases(projectObject, ghProject),
-                "lastUpdated": self.lastUpdate(projectObject, ghProject),
+                "projectLabels": self.loadLabels(projectObject, access_token),
+                "projectReleases": self.loadReleases(projectObject, access_token),
+                "lastUpdated": self.lastUpdate(projectObject, access_token),
             }
             now = datetime.now()
             project["activeMilestones"] = [
                 m
-                for m in list(project["allMilestones"])
+                for m in project["allMilestones"]
                 if not m.expired
                 and m.state == "active"
                 and m.start_date != "?"
@@ -78,502 +69,389 @@ class githubServiceCache(RepositoryServiceInterface):
                 and m.due_date != "?"
                 and m.due_date >= now
             ]
-            cache.set(id, project, settings.CACHE_PROJECTS)
+            cache.set(cache_id, project, settings.CACHE_PROJECTS)
 
         return project
 
-    def loadRemoteProject(self, projectObject: Project, tokenOrInstance):
-        project = self.getInstance(projectObject, tokenOrInstance)
-        remoteProject = remoteStdProject()
+    def _fetch_github_project(
+        self, project_identifier: str, token: str
+    ) -> Dict[str, Any]:
+        url = f"https://api.github.com/repos/{project_identifier}"
+        headers = {"Authorization": f"token {token}"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
 
-        remoteProject.id = project.id
-        remoteProject.remoteIdentifier = project.id
-        remoteProject.path = "GitHub"
-        remoteProject.avatar_url = ""
-        remoteProject.description = project.description
-        remoteProject.web_url = project.html_url
+    def loadRemoteProject(
+        self, projectObject: Project, gh_project: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        remote_project = remoteStdProject()
+        remote_project.id = gh_project["id"]
+        remote_project.remoteIdentifier = gh_project["id"]
+        remote_project.path = "GitHub"
+        remote_project.avatar_url = ""
+        remote_project.description = gh_project["description"]
+        remote_project.web_url = gh_project["html_url"]
+        return remote_project
 
-        return remoteProject
-
-    def loadLabels(self, projectObject: Project, tokenOrInstance) -> list:
+    def loadLabels(self, projectObject: Project, token: str) -> List[Dict[str, Any]]:
         """
-        Loads the labels from gitlab for the given project object
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
+        Loads the labels from GitHub for the given project object.
 
         @return:
-            list:
-                A list containing ProjectLabel objects
-                [ gitlab.v4.objects.labels.ProjectLabel, ... ]
+            list: A list containing label objects.
         """
+        cache_id = f"glh_{projectObject.project_identifier}_labels"
+        labels = cache.get(cache_id)
 
-        project = self.getInstance(projectObject, tokenOrInstance)
-        id = f"glh_{projectObject.project_identifier}_labels"
-
-        labels = cache.get(id)
         if not labels:
-            labels = []
-            ghLabels = project.get_labels()
-            for label in ghLabels:
-                if not projectObject.label_prefix or label.name.startswith(
-                    projectObject.label_prefix
-                ):
-                    labels.append(label)
-
-            cache.set(id, labels, settings.CACHE_PROJECTS)
+            url = f"https://api.github.com/repos/{projectObject.project_identifier}/labels"
+            headers = {"Authorization": f"token {token}"}
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            labels = response.json()
+            cache.set(cache_id, labels, settings.CACHE_PROJECTS)
 
         return labels
 
-    def loadReleases(self, projectObject: Project, tokenOrInstance) -> list:
+    def loadReleases(self, projectObject: Project, token: str) -> List[Dict[str, Any]]:
         """
-        Loads the releases from gitlab for the given project object
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
+        Loads the releases from GitHub for the given project object.
 
         @return:
-            list:
-                A list containing ProjectRelease objects
-                [ gitlab.v4.objects.labels.ProjectRelease, ... ]
+            list: A list containing release objects.
         """
+        cache_id = f"glh_{projectObject.project_identifier}_releases"
+        releases = cache.get(cache_id)
 
-        # ToDo: No releaases!!!
-        return []
+        if not releases:
+            url = f"https://api.github.com/repos/{projectObject.project_identifier}/releases"
+            headers = {"Authorization": f"token {token}"}
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            releases = response.json()
+            cache.set(cache_id, releases, settings.CACHE_PROJECTS)
 
-        project = self.getInstance(projectObject, tokenOrInstance)
-        id = f"glh_{projectObject.project_identifier}_releases"
-
-        ghReleases = []
-        labels = cache.get(id)
-        if not labels:
-            ghReleases = project.releases.list()
-
-            cache.set(id, ghReleases, settings.CACHE_PROJECTS)
-
-        return ghReleases
+        return releases
 
     def loadMilestones(
-        self, projectObject: Project, tokenOrInstance, iid: int = None
-    ) -> Union[list, dict]:
+        self, projectObject: Project, token: str, iid: int = None
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
-        Loads the milestones from gitlab for the given project object
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
+        Loads the milestones from GitHub for the given project object.
 
         @return:
-            A list containing ProjectMilestone objects
-            [ gitlab.v4.objects.milestones.ProjectMilestone, ... ]
+            list or dict: A list containing milestone objects or a single milestone object.
         """
-
         if not projectObject.enable_milestones:
             return []
 
-        project = self.getInstance(projectObject, tokenOrInstance)
-        id = "glh_" + projectObject.project_identifier + "_milestones"
+        cache_id = f"glh_{projectObject.project_identifier}_milestones"
         if iid:
-            id = f"{id}_{str(iid)}"
+            cache_id = f"{cache_id}_{str(iid)}"
 
-        milestones = cache.get(id)
+        milestones = cache.get(cache_id)
         if not milestones:
-            milestones = []
-            if iid:
-                remoteMilestone = project.get_milestone(number=iid)
-                newMilestone = self.convertMilestone(remoteMilestone)
-                milestones = newMilestone
-            else:
-                remoteMilestones = project.get_milestones()
-                # as there is no start date in github, use due date from last milestone
-                remoteMilestones = sorted(
-                    remoteMilestones,
-                    key=lambda m: (
-                        m.due_on
-                        if m.due_on != "?" and m.due_on
-                        else datetime(2020, 1, 1, 0, 0)
-                    ),
-                    reverse=False,
-                )
-                lastStartDate = datetime(2020, 1, 1, 0, 0)
-                for remoteMilestone in remoteMilestones:
-                    newMilestone = self.convertMilestone(remoteMilestone, lastStartDate)
-                    milestones.append(newMilestone)
-                    lastStartDate = newMilestone.due_date
-                milestones = sorted(
-                    milestones,
-                    key=lambda m: (
-                        m.due_date
-                        if m.due_date != "?" and m.due_date
-                        else datetime(2020, 1, 1, 0, 0)
-                    ),
-                    reverse=True,
-                )
-
-            cache.set(id, milestones, settings.CACHE_MILESTONES)
+            url = f"https://api.github.com/repos/{projectObject.project_identifier}/milestones"
+            headers = {"Authorization": f"token {token}"}
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            milestones = response.json()
+            cache.set(cache_id, milestones, settings.CACHE_MILESTONES)
 
         return milestones
-
-    def convertMilestone(self, remoteMilestone, startDate=datetime(2020, 1, 1, 0, 0)):
-        newMilestone = remoteStdMilestone()
-        newMilestone.id = remoteMilestone.id
-        newMilestone.remoteIdentifier = remoteMilestone.number
-        newMilestone.title = remoteMilestone.title
-        newMilestone.description = remoteMilestone.description
-        newMilestone.state = remoteMilestone.state
-        newMilestone.isActive = newMilestone.state == "open"
-        newMilestone.expired = (
-            (datetime.now() - remoteMilestone.due_on).days > 0
-            if remoteMilestone.due_on
-            else False
-        )
-        newMilestone.start_date = startDate
-        newMilestone.due_date = remoteMilestone.due_on
-        newMilestone.web_url = remoteMilestone.url
-
-        return newMilestone
-
-    # def calcStartDateMilestones(self, beforeMilestones):
-    #     afterMilestones = []
-    #     for idx, milestone in enumerate(beforeMilestones):
-    #         if idx > 0:
-    #             milestone.start_date = beforeMilestones[idx - 1].due_on
-    #         else:
-    #             milestone.start_date = datetime(2020, 1, 1, 0, 0)
-    #         afterMilestones.append(milestone)
-    #
-    #     return afterMilestones
 
     def loadIssues(
         self,
         projectObject: Project,
-        tokenOrInstance,
+        token: str,
         iid: int = None,
         page: int = 1,
         milestone: int = None,
         label: str = None,
         status: str = None,
-    ) -> Union[list, dict, None]:
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
         """
-        Loads an issue or the issues from gitlab for the given project object
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
+        Loads issues from GitHub and returns them.
 
         @return:
-            Either a list containing ProjectIssue objects, an dict with the ProjectIssues or None
-            [ gitlab.v4.objects.issues.ProjectIssue ... ] or { 'data': gitlab.v4.objects.issues.ProjectIssue, 'notes': [] } or None
+            list or dict or None: Either a list of issues, a single issue with details, or None if an error occurs.
         """
-        # make some transformations
+        logger.debug("Starting loadIssues function")
+        logger.debug(
+            f"Parameters: iid={iid}, page={page}, milestone={milestone}, label={label}, status={status}"
+        )
+
         if status == "opened":
             status = "open"
         elif status == "closed":
             status = "closed"
 
-        if type(label) == str:
+        if isinstance(label, str):
             label = [label]
 
-        project = self.getInstance(projectObject, tokenOrInstance)
+        cache_id = self._generate_cache_id(
+            projectObject.project_identifier, iid, milestone, label, status, page
+        )
+        logger.debug(f"Cache ID: {cache_id}")
 
-        id = f"glh_{projectObject.project_identifier}_issues"
-        if iid:
-            id = f"{id}_{str(iid)}"
-        elif milestone:
-            id = f"{id}_m{str(milestone)}"
-        elif label and status:
-            id = f"{id}_ls{str(status)}_{str(label)}"
-        elif label:
-            id = f"{id}_l{str(label)}"
-        elif status:
-            id = f"{id}_s{str(status)}"
-        id = f"{id}_p{str(page)}"
-
-        issues = cache.get(id)
+        issues = cache.get(cache_id)
         if not issues:
-            issues = []
-            remoteIssues = []
-            if iid:
-                remoteIssue = project.get_issue(iid)
-                newIssue = self.convertIssue(remoteIssue)
-
-                # ToDo how to get pull request for issue???
-                mergeRequests = []
-                # for remoteMergeRequest in remoteIssue.get_pulls():
-                #     newMR = self.convertMergeRequest(remoteMergeRequest)
-                #     mergeRequests.append(newMR)
-
-                notes = []
-                for remoteNote in remoteIssue.get_comments():
-                    newNote = self.convertNote(remoteNote)
-                    newIssue = calculateTime(newIssue, newNote.body)
-                    notes.append(newNote)
-
-                newIssue.notes = notes
-                # ToDo: There is no confidential in github, any alternative?
-                issues = {
-                    "data": newIssue,
-                    "notes": notes,
-                    "mergeRequests": mergeRequests,
-                }
-            elif milestone:
-                milestone = project.get_milestone(number=int(milestone))
-                remoteIssues = project.get_issues(
-                    milestone=milestone, state="all", sort="updated", direction="desc"
-                )
-            elif label and status:
-                remoteIssues = project.get_issues(
-                    labels=label, state=status, sort="updated", direction="desc"
-                )
-            elif label:
-                remoteIssues = project.get_issues(
-                    labels=label, state="all", sort="updated", direction="desc"
-                )
-            elif status:
-                remoteIssues = project.get_issues(
-                    state=status, sort="updated", direction="desc"
-                )
-            else:
-                remoteIssues = project.get_issues(
-                    state="all", sort="updated", direction="desc"
-                )
-
-            for remoteIssue in remoteIssues:
-                newIssue = self.convertIssue(remoteIssue)
-                notes = []
-
-                for remoteNote in remoteIssue.get_comments():
-                    newNote = self.convertNote(remoteNote)
-                    newIssue = calculateTime(newIssue, newNote.body)
-                    notes.append(newNote)
-
-                newIssue.notes = notes
-                issues.append(newIssue)
-
-            cache.set(id, issues, settings.CACHE_ISSUES)
+            try:
+                if iid:
+                    logger.debug(f"Fetching issue with ID: {iid}")
+                    issues = self._fetch_issue_by_id(
+                        projectObject.project_identifier, iid, token
+                    )
+                else:
+                    logger.debug("Fetching issues with filters")
+                    issues = self._fetch_issues(
+                        projectObject.project_identifier,
+                        milestone,
+                        label,
+                        status,
+                        page,
+                        token,
+                    )
+                cache.set(cache_id, issues, settings.CACHE_ISSUES)
+                logger.debug("Issues fetched and cached successfully")
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+                return {"error": _("An error occurred") + ": " + str(e)}
 
         return issues
 
-    def convertIssue(self, remoteIssue):
+    def _generate_cache_id(
+        self,
+        project_identifier: str,
+        iid: int = None,
+        milestone: int = None,
+        label: List[str] = None,
+        status: str = None,
+        page: int = 1,
+    ) -> str:
+        """
+        Generates a cache ID based on the provided parameters.
+
+        @return:
+            str: The generated cache ID.
+        """
+        cache_id = f"glh_{project_identifier}_issues"
+        if iid:
+            cache_id = f"{cache_id}_{str(iid)}"
+        elif milestone:
+            cache_id = f"{cache_id}_m{str(milestone)}"
+        elif label and status:
+            cache_id = f"{cache_id}_ls{str(status)}_{str(label)}"
+        elif label:
+            cache_id = f"{cache_id}_l{str(label)}"
+        elif status:
+            cache_id = f"{cache_id}_s{str(status)}"
+        return f"{cache_id}_p{str(page)}"
+
+    def _fetch_issue_by_id(
+        self, project_identifier: str, iid: int, token: str
+    ) -> Dict[str, Any]:
+        """
+        Fetches a single issue by ID from GitHub.
+
+        @return:
+            dict: A dictionary containing issue details.
+        """
+        url = f"https://api.github.com/repos/{project_identifier}/issues/{iid}"
+        headers = {"Authorization": f"token {token}"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        issue = response.json()
+        return self._get_issue_details(issue, token)
+
+    def _fetch_issues(self, project_identifier, milestone, label, status, page, token):
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        url = f"https://api.github.com/repos/{project_identifier}/issues"
+        params = {
+            "milestone": milestone,
+            "labels": label,
+            "state": status,
+            "page": page,
+            "per_page": 30,
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()  # This will raise an HTTPError for bad responses
+        return response.json()
+
+    def _get_issue_details(self, token, issue: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Converts a GitHub issue to a detailed issue dictionary.
+
+        @return:
+            dict: A dictionary containing issue details.
+        """
+        logger.debug("Starting _get_issue_details function")
+        issue_details = self.convertIssue(issue)
+        comments_url = issue["comments_url"]
+        headers = {"Authorization": f"token {token}"}
+        response = requests.get(comments_url, headers=headers)
+        response.raise_for_status()
+        comments = response.json()
+        notes = [self.convertNote(comment) for comment in comments]
+        for note in notes:
+            issue_details = calculateTime(issue_details, note["body"])
+        issue_details["notes"] = notes
+        return issue_details
+
+    def convertIssue(self, remoteIssue: Dict[str, Any]) -> Dict[str, Any]:
         newIssue = remoteStdIssue()
-        newIssue.id = remoteIssue.id
-        newIssue.iid = remoteIssue.number
-        newIssue.remoteIdentifier = remoteIssue.number
+        newIssue.id = remoteIssue["id"]
+        newIssue.iid = remoteIssue["number"]
+        newIssue.remoteIdentifier = remoteIssue["number"]
         newIssue.confidential = False
-        newIssue.state = remoteIssue.state
+        newIssue.state = remoteIssue["state"]
         newIssue.isOpen = newIssue.state == "open"
-        newIssue.title = remoteIssue.title
-        newIssue.description = remoteIssue.body
-        newIssue.created_at = remoteIssue.created_at
-        newIssue.updated_at = remoteIssue.updated_at
+        newIssue.title = remoteIssue["title"]
+        newIssue.description = remoteIssue["body"]
+        newIssue.created_at = remoteIssue["created_at"]
+        newIssue.updated_at = remoteIssue["updated_at"]
         newIssue.due_date = None
-        newIssue.closed_at = remoteIssue.closed_at
-        newIssue.web_url = remoteIssue.url
-        newIssue.user_notes_count = remoteIssue.comments
-        newIssue.author = self.convertUser(remoteIssue.user)
+        newIssue.closed_at = remoteIssue["closed_at"]
+        newIssue.web_url = remoteIssue["url"]
+        newIssue.user_notes_count = remoteIssue["comments"]
+        newIssue.author = self.convertUser(remoteIssue["user"])
 
-        if remoteIssue.assignees:
-            newIssue.assignees = []
-            for assignee in remoteIssue.assignees:
-                newUser = self.convertUser(assignee)
-                newIssue.assignees.append(newUser)
+        if remoteIssue.get("assignees"):
+            newIssue.assignees = [
+                self.convertUser(assignee) for assignee in remoteIssue["assignees"]
+            ]
 
-        if remoteIssue.milestone:
-            newIssue.milestone = self.convertMilestone(remoteIssue.milestone)
+        if remoteIssue.get("milestone"):
+            newIssue.milestone = self.convertMilestone(remoteIssue["milestone"])
 
-        if remoteIssue.labels:
-            newIssue.labels = []
-            for label in remoteIssue.labels:
-                newIssue.labels.append(label.name)
-
-            if (
-                "confidential" in newIssue.labels
-                or "Confidential" in newIssue.labels
-                or "hidden" in newIssue.labels
-                or "Hidden" in newIssue.labels
-                or "internal" in newIssue.labels
-                or "Internal" in newIssue.labels
+        if remoteIssue.get("labels"):
+            newIssue.labels = [label["name"] for label in remoteIssue["labels"]]
+            if any(
+                label
+                in [
+                    "confidential",
+                    "Confidential",
+                    "hidden",
+                    "Hidden",
+                    "internal",
+                    "Internal",
+                ]
+                for label in newIssue.labels
             ):
                 newIssue.confidential = True
 
-        # if remoteIssue.time_stats():
-        #     newIssue.time_stats_human_time_estimate = 0
-        #     newIssue.time_stats_human_total_time_spent = 0
-        #     newIssue.time_stats_time_estimate = 0
-        #     newIssue.time_stats_total_time_spent = 0
-
         return newIssue
 
-    def convertUser(self, remoteUser):
+    def convertUser(self, remoteUser: Dict[str, Any]) -> Dict[str, Any]:
         newUser = remoteStdUser()
-        newUser.id = remoteUser.id
+        newUser.id = remoteUser["id"]
         newUser.state = ""
-        newUser.username = remoteUser.login
-        newUser.name = remoteUser.login
-        newUser.web_url = remoteUser.html_url
-
+        newUser.username = remoteUser["login"]
+        newUser.name = remoteUser["login"]
+        newUser.web_url = remoteUser["html_url"]
         return newUser
 
-    def convertMergeRequest(self, remoteMergeRequest):
-        newMergeRequest = remoteStdMergeRequest()
-        newMergeRequest.id = remoteMergeRequest.id
-        newMergeRequest.iid = remoteMergeRequest.number
-        newMergeRequest.remoteIdentifier = remoteMergeRequest.number
-        newMergeRequest.title = remoteMergeRequest.title
-        newMergeRequest.description = remoteMergeRequest.body
-        newMergeRequest.state = remoteMergeRequest["state"]
-        newMergeRequest.created_at = remoteMergeRequest.created_at
-        newMergeRequest.updated_at = remoteMergeRequest.updated_at
-        newMergeRequest.user_notes_count = remoteMergeRequest.comments
-        newMergeRequest.draft = remoteMergeRequest.draft
-        # newMergeRequest.work_in_progress = True
-        # ToDo check!
-        newMergeRequest.changes_count = remoteMergeRequest.commits
-        newMergeRequest.web_url = remoteMergeRequest.html_url
+    def convertMilestone(
+        self,
+        remoteMilestone: Dict[str, Any],
+        startDate: datetime = datetime(2020, 1, 1, 0, 0),
+    ) -> Dict[str, Any]:
+        newMilestone = remoteStdMilestone()
+        newMilestone.id = remoteMilestone["id"]
+        newMilestone.remoteIdentifier = remoteMilestone["number"]
+        newMilestone.title = remoteMilestone["title"]
+        newMilestone.description = remoteMilestone["description"]
+        newMilestone.state = remoteMilestone["state"]
+        newMilestone.isActive = newMilestone.state == "open"
+        newMilestone.expired = (
+            (
+                datetime.now()
+                - datetime.strptime(remoteMilestone["due_on"], "%Y-%m-%dT%H:%M:%SZ")
+            ).days
+            > 0
+            if remoteMilestone["due_on"]
+            else False
+        )
+        newMilestone.start_date = startDate
+        newMilestone.due_date = (
+            datetime.strptime(remoteMilestone["due_on"], "%Y-%m-%dT%H:%M:%SZ")
+            if remoteMilestone["due_on"]
+            else None
+        )
+        newMilestone.web_url = remoteMilestone["url"]
+        return newMilestone
 
+    def convertMergeRequest(self, remoteMergeRequest: Dict[str, Any]) -> Dict[str, Any]:
+        newMergeRequest = remoteStdMergeRequest()
+        newMergeRequest.id = remoteMergeRequest["id"]
+        newMergeRequest.iid = remoteMergeRequest["number"]
+        newMergeRequest.remoteIdentifier = remoteMergeRequest["number"]
+        newMergeRequest.title = remoteMergeRequest["title"]
+        newMergeRequest.description = remoteMergeRequest["body"]
+        newMergeRequest.state = remoteMergeRequest["state"]
+        newMergeRequest.created_at = remoteMergeRequest["created_at"]
+        newMergeRequest.updated_at = remoteMergeRequest["updated_at"]
+        newMergeRequest.user_notes_count = remoteMergeRequest["comments"]
+        newMergeRequest.draft = remoteMergeRequest["draft"]
+        newMergeRequest.changes_count = remoteMergeRequest["commits"]
+        newMergeRequest.web_url = remoteMergeRequest["html_url"]
         return newMergeRequest
 
-    def convertNote(self, remoteNote):
+    def convertNote(self, remoteNote: Dict[str, Any]) -> Dict[str, Any]:
         newNote = remoteStdNote()
-        newNote.id = remoteNote.id
-        newNote.body = remoteNote.body
-        newNote.created_at = remoteNote.created_at
-        newNote.updated_at = remoteNote.updated_at
+        newNote.id = remoteNote["id"]
+        newNote.body = remoteNote["body"]
+        newNote.created_at = remoteNote["created_at"]
+        newNote.updated_at = remoteNote["updated_at"]
         newNote.confidential = False
         newNote.internal = False
-        newNote.author = self.convertUser(remoteNote.user)
-
+        newNote.author = self.convertUser(remoteNote["user"])
         return newNote
 
-    def loadWikiPage(
-        self, projectObject: Project, tokenOrInstance, slug: str = None
-    ) -> Union[ProjectWiki, list]:
-        """
-        Loads a project wiki page or all wiki pages object from gitlab using the project identifier and slug
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
-
-        @return:
-            Either a single wiki page if slug is set or all pages of the project in a list
-        """
-
-        # ToDo: No wikis!!!
-        return False
-
-        if not projectObject.enable_documentation:
-            return False
-
-        project = self.getInstance(projectObject, tokenOrInstance)
-        if slug:
-            id = "glh_" + projectObject.project_identifier + "_" + slug
-        else:
-            id = "glh_" + projectObject.project_identifier
-
-        page = cache.get(id)
-        if not page:
-            if slug:
-                if not projectObject.wikiPrefix or slug.startswith(
-                    projectObject.wikiPrefix
-                ):
-                    page = project.wikis.get(slug)
-            else:
-                page = project.wikis.list()
-            cache.set(id, page, settings.CACHE_PROJECTS)
-
-        return page
-
-    def createIssue(
-        self,
-        projectObject: Project,
-        tokenOrInstance,
-        title: str,
-        description="",
-        milestoneIdentifier="",
-        labels="",
-    ):
-        project = self.getInstance(projectObject, tokenOrInstance)
-
-        newIssue = {"title": title, "body": description}
-
-        if labels != "" and type(labels) == str:
-            labels = [labels]
-            newIssue["labels"] = labels
-
-        if milestoneIdentifier != "":
-            milestone = project.get_milestone(number=int(milestoneIdentifier))
-            newIssue["milestone"] = milestone
-
-        issue = project.create_issue(**newIssue)
-
-        cache.delete(
-            "glh_" + projectObject.project_identifier + "issues_" + str(issue.number)
-        )
-
-        return True
-
-    def createIssueComment(
-        self, projectObject: Project, tokenOrInstance, issue: int, body: str
-    ):
-        project = self.getInstance(projectObject, tokenOrInstance)
-
-        issue = project.get_issue(issue).create_comment(body)
-
-        id = "glp_" + projectObject.project_identifier + "_issues_" + str(issue)
-        cache.delete(id)
-
-        return True
-
-    def lastUpdate(self, projectObject: Project, tokenOrInstance):
+    def lastUpdate(self, projectObject: Project, token: str) -> datetime:
         def get_naive_datetime(dt: datetime) -> datetime:
             """Ensure the datetime is naive."""
             if dt.tzinfo is not None:
-                return dt.replace(tzinfo=None)
+                dt = dt.replace(tzinfo=None)
             return dt
 
-        project = self.getInstance(projectObject, tokenOrInstance)
-        lastUpdate = project.updated_at
-        if lastUpdate < project.pushed_at:
-            lastUpdate = project.pushed_at
+        project = self.getInstance(projectObject, token)
+        last_update = project["updated_at"]
+        if last_update < project["pushed_at"]:
+            last_update = project["pushed_at"]
 
-        remoteIssues = project.get_issues(
-            state="all", sort="updated", direction="desc", since=lastUpdate
+        url = f"https://api.github.com/repos/{projectObject.project_identifier}/issues"
+        headers = {"Authorization": f"token {token}"}
+        params = {
+            "state": "all",
+            "sort": "updated",
+            "direction": "desc",
+            "since": last_update,
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        remote_issues = response.json()
+        if remote_issues:
+            last_update = remote_issues[0]["updated_at"]
+
+        naive_last_update = get_naive_datetime(
+            datetime.strptime(last_update, "%Y-%m-%dT%H:%M:%SZ")
         )
-        if remoteIssues.totalCount > 0:
-            lastUpdate = remoteIssues[0].updated_at
+        return datetime.now(timezone.utc).astimezone().replace(tzinfo=None)
 
-        naive_last_update = get_naive_datetime(lastUpdate)
-        import django
-
-        return django.utils.timezone.make_aware(naive_last_update, timezone.utc)
-
-    def getInstance(self, projectObject: Project, tokenOrInstance):
+    def getInstance(self, projectObject: Project, token: str) -> Dict[str, Any]:
         """
-        Get the github repository object instance (remoteProject)
-
-        @params:
-            tokenOrInstance:
-                Is either a string (token) or a gitlab.v4.objects.projects.Project instance
+        Get the GitHub repository object instance (remoteProject).
 
         @return:
-            github
+            dict: The GitHub repository object.
         """
-
-        if type(tokenOrInstance) == str:
-            # Only for self hosted github
-            # gh = Github(base_url=settings.GITHUB_URL, login_or_token=tokenOrInstance)
-            # ToDo: not working or used ???
-            ### gh = Github(login_or_token=tokenOrInstance)
-            ### project = gh.projects.get(projectObject.project_identifier)
-            # full_name_or_id, (str, int)
-            gh = github.Github(tokenOrInstance)
-            ghProject = gh.get_repo(int(projectObject.project_identifier))
-            ghProject.path = "GitHub"
-            project = ghProject
-        else:
-            project = tokenOrInstance
-
-        return project
+        url = f"https://api.github.com/repos/{projectObject.project_identifier}"
+        headers = {"Authorization": f"token {token}"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()

@@ -4,21 +4,21 @@
     <div class="team__members">
         {% for team in localProject.teams.all %}
             {% for member in team.members.all %}
-                <div class="team__member row mb-3">
-                    <div class="col-3 text-end">
-                        {% if member.avatar and member.avatar.url %}
+                <div class="team__member d-flex justify-content-around align-items-center mb-3">
+                    <div class="col-2 me-1">
+                        {% if member.picture %}
                             {% if member.homepage %}
                                 <a href="{{ member.homepage }}" target="_blank" class="nolink">
                             {% endif %}
-                                <img src="{{ member.avatar.url }}" width="75" class="rounded-circle team__member-avatar">
+                                <img src="{{ member.picture.url }}" width="50" class="rounded-circle team__member-avatar">
                             {% if member.homepage %}
                                 </a>
                             {% endif %}
                         {% else %}
-                            <img src="https://software-design.de/static/img/team/unknown.png" width="75" class="rounded-circle team__member-avatar">
+                            <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle team__member-avatar">
                         {% endif %}
                     </div>
-                    <div class="col-9">
+                    <div class="col-10">
                         {% if member.homepage %}
                             <a href="{{ member.homepage }}" target="_blank" class="text-decoration-none text-secondary nolink">
                         {% endif %}
@@ -29,8 +29,8 @@
                             </a>
                         {% endif %}
 
-                        {% if member.email %}
-                            <i class="far fa-envelope"></i> &nbsp;<a href="mailto:{{ member.email }}">{{ member.email }}</a><br>
+                        {% if member.user.email %}
+                            <i class="far fa-envelope"></i> &nbsp;<a href="mailto:{{ member.user.email }}">{{ member.user.email }}</a><br>
                         {% endif %}
                         {% if member.phone %}
                             <i class="far fa-phone"></i> &nbsp;<a href="tel:{{ member.phone }}">{{ member.phone }}</a>

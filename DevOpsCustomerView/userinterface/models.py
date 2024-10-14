@@ -76,9 +76,12 @@ class TeamMember(models.Model):
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
     picture = models.ImageField(upload_to="team_pictures/", blank=True)
-    mattermost_user = models.CharField(max_length=200, blank=True)
     code = models.CharField(max_length=200, blank=True)
     short = models.CharField(max_length=200, blank=True)
+
+    mattermost_user = models.CharField(max_length=200, blank=True)
+    homepage = models.URLField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
 
     class Meta:
         verbose_name = "SD Teammitglied"

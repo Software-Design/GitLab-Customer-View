@@ -109,7 +109,7 @@
 				<td>
 					{% for request in issue.mergeRequests %}
 						{% if forloop.counter != 1 %}
-							<hr>
+						<hr>
 						{% endif %}
 						{% trans "Last updated" %} {{ request.updated_at|date:settings.DATE_FORMAT }}
 							<br>
