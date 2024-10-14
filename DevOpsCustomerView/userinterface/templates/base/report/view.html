@@ -5,7 +5,6 @@
 {% load template %}
 {% load embellish %}
 
-
 {% block extra_css %}
   <style>
     .project .bar {
@@ -17,10 +16,10 @@
 {% endblock %}
 
 {% block content %}
-  <h2>{% trans "Important dates" %}</h2>
+  <h2>{% trans "Wichtige Termine" %}</h2>
   <div class="row">
     <div class="col-4">
-      <h5>{% trans "Ending soon" %}</h5>
+      <h5>{% trans "Endet bald" %}</h5>
       {% for project in activeProjects %}
         {% for milestone in project.allMilestones %}
           {% if not milestone.due_date or milestone.due_date|dayssince < 0 and milestone.due_date|dayssince > -14 %}
@@ -28,7 +27,7 @@
                 <strong><a href="/project/{{ project.remoteProject.path }}/{{ project.remoteProject.remoteIdentifier }}/milestone/{{ milestone.remoteIdentifier }}">{{ milestone.title }}</a></strong><br>
                 <div class="text-muted">
                   <small>{{ project.localProject.name }}</small><br>
-                  <small class="text-danger">{% trans "Ending" %} {{ milestone.due_date|date:settings.DATE_FORMAT }}</small>
+                  <small class="text-danger">{% trans "Endet" %} {{ milestone.due_date|date:settings.DATE_FORMAT }}</small>
                 </div>
             </li>
           {% endif %}
@@ -36,7 +35,7 @@
       {% endfor %}
     </div>
     <div class="col-4">
-      <h5>{% trans "Recently ended" %}</h5>
+      <h5>{% trans "Kürzlich beendet" %}</h5>
       {% for project in activeProjects %}
         {% for milestone in project.allMilestones %}
           {% if milestone.due_date and milestone.due_date|dayssince >= 0 and milestone.due_date|dayssince < 14 %}
@@ -44,7 +43,7 @@
                 <strong><a href="/project/{{ project.remoteProject.path }}/{{ project.remoteProject.remoteIdentifier }}/milestone/{{ milestone.remoteIdentifier }}">{{ milestone.title }}</a></strong><br>
                 <div class="text-muted">
                   <small>{{ project.localProject.name }}</small><br>
-                  <small class="text-danger">{% trans "Ended" %} {{ milestone.due_date|date:settings.DATE_FORMAT }}</small>
+                  <small class="text-danger">{% trans "Beendet" %} {{ milestone.due_date|date:settings.DATE_FORMAT }}</small>
                 </div>
             </li>
           {% endif %}
@@ -52,15 +51,15 @@
       {% endfor %}
     </div>
     <div class="col-4">
-      <h5>{% trans "Overdue" %}</h5>
+      <h5>{% trans "Überfällig" %}</h5>
       {% for project in activeProjects %}
-        {% for issue in project.mostRecentIssues %} 
+        {% for issue in project.mostRecentIssues %}
           {% if issue.state != "closed" and issue.due_date|dayssince > 0 %}
             <li class="list-group-item">
                 <strong><a href="/project/{{ project.remoteProject.path }}/{{ project.remoteProject.remoteIdentifier }}/issues/{{ issue.remoteIdentifier }}">#{{ issue.remoteIdentifier }} {{ issue.title }}</a></strong><br>
                 <div class="text-muted">
                   <small>{{ project.localProject.name }}</small><br>
-                  <small class="text-danger">{% trans "Due" %} {{ issue.due_date|date:settings.DATE_FORMAT }}</small>
+                  <small class="text-danger">{% trans "Fällig" %} {{ issue.due_date|date:settings.DATE_FORMAT }}</small>
                 </div>
             </li>
           {% endif %}
@@ -69,7 +68,7 @@
     </div>
   </div>
   <br>
-  <h2>{% trans "Current projects" %}</h2>
+  <h2>{% trans "Aktuelle Projekte" %}</h2>
       <svg id="gantt"></svg>
       <script nonce="{{ request.csp_nonce }}">
         var tasks = [
@@ -82,7 +81,7 @@
                 start: '{% with firstMilestone=project.allMilestones|first %}{{ firstMilestone.start_date|date:"Y-m-d"|default:"2020-01-01" }}{% endwith %}',
                 end: '{% with lastMilestone=project.allMilestones|last %}{{ lastMilestone.due_date|date:"Y-m-d"|default:"2020-01-01" }}{% endwith %}',
                 progress: 0,
-                custom_class: 'project' 
+                custom_class: 'project'
               },
           {% endif %}
         {% endfor %}
@@ -103,14 +102,14 @@
         gantt.gantt_start = new Date(gantt.gantt_start.getTime() - t)
         gantt.set_scroll_position()
       </script>
-  <h2>{% trans "Project status" %}</h2>
+  <h2>{% trans "Projektstatus" %}</h2>
   <table class="table">
     <tr>
       <th></th>
       <th>{% trans "Name" %}</th>
-      <th class="text-center">{% trans "Last activity" %}</th>
-      <th class="text-center">{% trans "Active state" %}</th>
-      <th class="text-center">{% trans "Active milestone" %}</th>
+      <th class="text-center">{% trans "Letzte Aktivität" %}</th>
+      <th class="text-center">{% trans "Aktiver Zustand" %}</th>
+      <th class="text-center">{% trans "Aktiver Meilenstein" %}</th>
     </tr>
     {% for project in activeProjects %}
       <tr>
@@ -124,7 +123,7 @@
             {% if not project.localProject.inactive %}
             <strong>{{ project.localProject.name }}</strong><br>
             {% else %}
-            <em>{{ project.localProject.name }}</em> ({% trans "inactive" %})<br>
+            <em>{{ project.localProject.name }}</em> ({% trans "inaktiv" %})<br>
             {% endif %}
           </a>
           {% for member in project.localProject.assignees.all %}
@@ -138,25 +137,25 @@
             {% else %}
               <i class="fa far fa-thumbs-up" style="color: green;"></i>
             {% endif %}
-            <br><small class="text-muted">{{ dsince }} {% trans "days ago" %}</small>
+            <br><small class="text-muted">{{ dsince }} {% trans "Tage her" %}</small>
           {% endwith %}
         </td>
         <td class="text-center">
           {% if not project.localProject.inactive %}
             {% if project.remoteProject.open_issues_count == 0 %}
               <i class="fa far fa-engine-warning" style="color: red;"></i>
-              <br><small class="text-muted">{% trans "active" %} + {% trans "without open issues" %}</small>
+              <br><small class="text-muted">{% trans "aktiv" %} + {% trans "ohne offene Issues" %}</small>
             {% else %}
               <i class="fa far fa-thumbs-up" style="color: green;"></i>
-              <br><small class="text-muted">{% trans "active" %} + {{ project.remoteProject.open_issues_count }} {% trans "open issue(s)" %}</small>
+              <br><small class="text-muted">{% trans "aktiv" %} + {{ project.remoteProject.open_issues_count }} {% trans "offene(s) Issue(s)" %}</small>
             {% endif %}
           {% else %}
             {% if project.remoteProject.open_issues_count == 0 %}
               <i class="fa far fa-thumbs-up" style="color: green;"></i>
-              <br><small class="text-muted">{% trans "inactive" %} + {% trans "without open issues" %}</small>
+              <br><small class="text-muted">{% trans "inaktiv" %} + {% trans "ohne offene Issues" %}</small>
             {% else %}
               <i class="fa far fa-engine-warning" style="color: red;"></i>
-              <br><small class="text-muted">{% trans "inactive" %} + {{ project.remoteProject.open_issues_count }} {% trans "open issue(s)" %}</small>
+              <br><small class="text-muted">{% trans "inaktiv" %} + {{ project.remoteProject.open_issues_count }} {% trans "offene(s) Issue(s)" %}</small>
             {% endif %}
           {% endif %} 
         </td>
@@ -164,18 +163,18 @@
           {% if not project.localProject.inactive %}
             {% if project.activeMilestones|length == 0 %}
               <i class="fa far fa-engine-warning" style="color: red;"></i>
-              <br><small class="text-muted">{% trans "active" %} + {% trans "without active milestones" %}</small>
+              <br><small class="text-muted">{% trans "aktiv" %} + {% trans "ohne aktive Meilensteine" %}</small>
             {% else %}
               <i class="fa far fa-thumbs-up" style="color: green;"></i>
-              <br><small class="text-muted">{% trans "active" %} + {{ project.activeMilestones|length }} {% trans "active milestone(s)" %}</small>
+              <br><small class="text-muted">{% trans "aktiv" %} + {{ project.activeMilestones|length }} {% trans "aktive(r) Meilenstein(e)" %}</small>
             {% endif %}
           {% else %}
             {% if project.activeMilestones|length == 0 %}
               <i class="fa far fa-thumbs-up" style="color: green;"></i>
-              <br><small class="text-muted">{% trans "inactive" %} + {% trans "without active milestones" %}</small>
+              <br><small class="text-muted">{% trans "inaktiv" %} + {% trans "ohne aktive Meilensteine" %}</small>
             {% else %}
               <i class="fa far fa-engine-warning" style="color: red;"></i>
-              <br><small class="text-muted">{% trans "inactive" %} + {{ project.activeMilestones|length }} {% trans "active milestone(s)" %}</small>
+              <br><small class="text-muted">{% trans "inaktiv" %} + {{ project.activeMilestones|length }} {% trans "aktive(r) Meilenstein(e)" %}</small>
             {% endif %}
           {% endif %} 
         </td>
@@ -183,7 +182,7 @@
     {% endfor %}
   </table>
   <br>
-  <h2>{% trans "Employees" %}</h2>
+  <h2>{% trans "Mitarbeiter" %}</h2>
   <br>
   {% for member in members %}
     <div class="row">
@@ -195,7 +194,7 @@
         <svg id="gantt{{ member.pk }}"></svg>
       </div>
       <div class="col-4">
-        <h5>{% blocktranslate with projectCount=member.getActiveProjects|length %}In {{ projectCount }} active projects involved{% endblocktranslate %}:</h5>
+        <h5>{% blocktranslate with projectCount=member.getActiveProjects|length %}In {{ projectCount }} aktiven Projekten beteiligt{% endblocktranslate %}:</h5>
         {% for project in member.getActiveProjects %}
           {% with gl=project.loadProject %}
             <a href="/project/{{ gl.remoteProject.path }}/{{ gl.remoteProject.remoteIdentifier }}" class="nolink">
@@ -207,7 +206,7 @@
                         <small>{{ p.title }} <em>({{ p.start_date|date:"d.m.y" }} - {{ p.due_date|date:"d.m.y" }})</em></small><br>
                       {% endfor %}
                     {% else %}
-                      <small class="text-danger">{% trans "No active milestone" %}</small>
+                      <small class="text-danger">{% trans "Kein aktiver Meilenstein" %}</small>
                     {% endif %}
                   </div>
               </li>

@@ -1,15 +1,15 @@
 {% load i18n %}
 {% load dates %}
 {% load template %}
+{% comment %} TODO: add it back {% endcomment %}
+{% comment %} {% if p.remoteProject.path and p.remoteProject.id and p.localProject.project_identifier %} {% endcomment %}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <div>
-            <h4 class="card-title mb-0"><a href="/project/{{ p.remoteProject.path }}/{{ p.remoteProject.id }}" class="nolink">{{ p.localProject }}</a></h4>
+            <h4 class="card-title mb-0">{{ p.localProject.name }}  <small>#{{ p.localProject.project_identifier }}</small></h4>
         </div>
         <div class="btn-group" role="group">
-            {% if request.user.is_superuser and p.localProject.publicOverviewPassword %}
-            <a href="/project/{{ p.remoteProject.path }}/{{ p.remoteProject.id }}/{{ p.localProject.publicAccessHash }}" class="btn btn-outline-primary" target="_blank" data-bs-toggle="tooltip" title="Zur öffentlichen Projektseite"><i class="far fa-globe"></i></a>
-            {% endif %}
+            <a href="/project/{{ p.remoteProject.path }}/{{ p.remoteProject.id }}/{{ p.localProject.public_access_hash }}" class="btn btn-outline-primary" target="_blank" data-bs-toggle="tooltip" title="Zur öffentlichen Projektseite"><i class="far fa-globe"></i></a>  
             {% if request.user.is_superuser %}
             <a href="/admin/userinterface/project/{{ p.localProject.pk }}/change/" class="btn btn-outline-primary" target="_blank" data-bs-toggle="tooltip" title="Zum Admin-Bereich"><i class="far fa-star"></i></a>
             <a href="{{ p.remoteProject.web_url }}" class="btn btn-outline-primary" target="_blank" data-bs-toggle="tooltip" title="Zum Repository"><i class="fab fa-github"></i></a>
@@ -40,63 +40,71 @@
                     <div class="col-md-6">
                         <div class="accordion" id="teamAccordion">
                             {% for team in p.localProject.teams.all %}
+                                {% if team.members.exists %}
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="heading{{ team.id }}">
+                                            <button class="accordion-button {% if forloop.first %} {% else %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ team.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ team.id }}">
+                                                <i class="far fa-users me-2"></i> {{ team.name }}
+                                            </button>
+                                        </h2>
+                                        <div id="collapse{{ team.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ team.id }}" data-bs-parent="#teamAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="list-group">
+                                                    {% for member in team.members.all %}
+                                                        <li class="list-group-item d-flex align-items-center">
+                                                            {% if member.picture %}
+                                                            <img src="{{ member.picture.url }}" width="50" class="rounded-circle me-3" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ member.user.get_full_name }}">
+                                                            {% else %}
+                                                            <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle me-3" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ member.user.get_full_name }}">
+                                                            {% endif %}
+                                                            <span>{{ member.user.get_full_name }} <small>({{ member.get_role_display }})</small></span>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="accordion" id="customerAccordion{{ forloop.counter }}">
+                            {% if p.localProject.customer_company.customeruser_set.exists %}
                                 <div class="accordion-item">
-                                    <h2 class="accordion-header" id="heading{{ team.id }}">
-                                        <button class="accordion-button {% if forloop.first %} {% else %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ team.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ team.id }}">
-                                            <i class="far fa-users me-2"></i> {{ team.name }}
+                                    <h2 class="accordion-header" id="headingCustomer{{ forloop.counter }}">
+                                        <button class="accordion-button {% if forloop.first %} {% else %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCustomer{{ forloop.counter }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapseCustomer{{ forloop.counter }}">
+                                            <i class="far fa-building me-2"></i> {{ p.localProject.customer_company.name }}
                                         </button>
                                     </h2>
-                                    <div id="collapse{{ team.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ team.id }}" data-bs-parent="#teamAccordion">
+                                    <div id="collapseCustomer{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="headingCustomer{{ forloop.counter }}" data-bs-parent="#customerAccordion{{ forloop.counter }}">
                                         <div class="accordion-body">
+                                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                                <img src="{% if p.localProject.customer_company.image %}{{ p.localProject.customer_company.image.url }}{% else %}https://software-design.de/static/img/company/unknown.png{% endif %}" width="100" class="{% if not p.localProject.customer_company.image %}rounded-circle{% endif %} me-3" alt="{{ p.localProject.customer_company.name }}">
+                                                <div>
+                                                    <strong>{{ p.localProject.customer_company.name }}</strong><br>
+                                                    <small>{{ p.localProject.customer_company.address }}</small>
+                                                </div>
+                                            </div>
                                             <ul class="list-group">
-                                                {% for member in team.members.all %}
-                                                <li class="list-group-item d-flex align-items-center">
-                                                    <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle me-3" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ member.user.get_full_name }}">
-                                                    <span>{{ member.user.get_full_name }} <small>({{ member.get_role_display }})</small></span>
-                                                </li>
+                                                {% for customer_user in p.localProject.customer_company.customeruser_set.all %}
+                                                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                                                        <div>
+                                                            <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle me-3" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ customer_user.user.get_full_name }}">
+                                                            <span>{{ customer_user.user.get_full_name }}</span>
+                                                        </div>
+                                                        <div>
+                                                            {% if customer_user.can_handle_contracts %}
+                                                                <i class="far fa-file-invoice ms-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Dieser Benutzer hat die Berechtigung, Verträge zu erstellen."></i>
+                                                            {% endif %}
+                                                        </div>
+                                                    </li>
                                                 {% endfor %}
                                             </ul>
                                         </div>
                                     </div>
                                 </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="accordion" id="customerAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="headingCustomer">
-                                    <button class="accordion-button {% if forloop.first %} {% else %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCustomer" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapseCustomer">
-                                        <i class="far fa-building me-2"></i> {{ p.localProject.customer_company.name }}
-                                    </button>
-                                </h2>
-                                <div id="collapseCustomer" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="headingCustomer" data-bs-parent="#customerAccordion">
-                                    <div class="accordion-body">
-                                        <div class="d-flex align-items-center justify-content-center mb-3">
-                                            <img src="{% if p.localProject.customer_company.image %}{{ p.localProject.customer_company.image.url }}{% else %}https://software-design.de/static/img/company/unknown.png{% endif %}" width="100" class="{% if not p.localProject.customer_company.image %}rounded-circle{% endif %} me-3" alt="{{ p.localProject.customer_company.name }}">
-                                            <div>
-                                                <strong>{{ p.localProject.customer_company.name }}</strong><br>
-                                                <small>{{ p.localProject.customer_company.address }}</small>
-                                            </div>
-                                        </div>
-                                        <ul class="list-group">
-                                            {% for customer_user in p.localProject.customer_company.customeruser_set.all %}
-                                            <li class="list-group-item d-flex align-items-center justify-content-between">
-                                                <div>
-                                                    <img src="https://software-design.de/static/img/team/unknown.png" width="50" class="rounded-circle me-3" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ customer_user.user.get_full_name }}">
-                                                    <span>{{ customer_user.user.get_full_name }}</span>
-                                                </div>
-                                                <div>
-                                                    {% if not customer_user.user.can_handle_contracts %}
-                                                        <i class="far fa-file-invoice ms-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Dieser Benutzer hat die Berechtigung, Verträge zu erstellen."></i>
-                                                    {% endif %}
-                                                </div>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -120,3 +128,4 @@
     </div>
     <div class="card-footer"></div>
 </div>
+{% comment %} {% endif %} {% endcomment %}

@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="btn-group float-end" role="group">
-  {% if localProject.enableTicketCreation %}
+  {% if localProject.enable_ticket_creation %}
   <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/" class="btn btn-outline-primary"><i class="fa far fa-folder-open"></i> {% trans "All Issues" %}</a>
   {% endif %}
   {% if request.user.is_superuser %}

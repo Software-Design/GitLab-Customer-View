@@ -133,37 +133,35 @@
     {% endblock %}
 
     {% block modals %}
-    <form method="GET" action="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/print/">
-        <div class="modal" id="exportModal" tabindex="-1" role="dialog">
-          <div class="modal-dialog" role="document">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">{% trans "Export project overview" %}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div class="modal-body">
-                {% trans "This export will generate an overview of all issues updated since the date you chose below and the sum of time spent since this day." %}<br><br>
-                <div class="row">
-                  <div class="col-6">
-                    <label>{% trans "Starting" %}</label>
-                    <input type="date" id="exportStartDate" name="start" class="form-control" value="{{ now|first_day_of_previous_month|date:"Y-m-d" }}">
-                  </div>
-                  <div class="col-6">
-                    <label>{% trans "Until" %}</label>
-                    <input type="date" id="exportEndDate" name="end" class="form-control" value="{{ now|last_day_of_previous_month|date:"Y-m-d" }}">
-                  </div>
+        <form method="GET" action="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/print/">
+            <div class="modal fade" id="exportModal" tabindex="-1" role="dialog" aria-labelledby="exportModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="exportModalLabel">{% trans "Projektübersicht exportieren" %}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                        </div>
+                        <div class="modal-body">
+                            {% trans "Dieser Export erstellt eine Übersicht aller seit dem gewählten Datum aktualisierten Issues und der seitdem aufgewendeten Gesamtzeit." %}<br><br>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label for="exportStartDate">{% trans "Beginn" %}</label>
+                                    <input type="date" id="exportStartDate" name="start" class="form-control" value="{{ now|first_day_of_previous_month|date:"Y-m-d" }}">
+                                </div>
+                                <div class="col-6">
+                                    <label for="exportEndDate">{% trans "Ende" %}</label>
+                                    <input type="date" id="exportEndDate" name="end" class="form-control" value="{{ now|last_day_of_previous_month|date:"Y-m-d" }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <input type="submit" class="btn btn-primary" id="exportButton" value="{% trans "Exportieren" %}">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Schließen" %}</button>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <input type="submit" class="btn btn-primary" id="exportButton" value="{% trans "Export" %}">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Close" %}</button>
-              </div>
             </div>
-          </div>
-        </div>
-    </form>
+        </form>
     {% endblock %}
 
     {% block base_js %}

@@ -18,17 +18,16 @@
 		</div>
 	{% endif %}
 	<div class="btn-group float-end" role="group">
-		{% if localProject.enableTicketCreation %}
-		<a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Create Ticket" %}</a>
+		{% if localProject.enable_ticket_creation %}
+		<a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Ticket erstellen" %}</a>
 		{% endif %}
 		{% if request.user.is_superuser %}
 		<a href="{{ issue.data.web_url }}" class="btn btn-outline-primary" target="_blank"><i class="fab fa-gitlab"></i></a>
 		{% endif %}
 	</div>
-			
 <h2>#{{ issue.data.iid }} - {{ issue.data.title }}</h2>
 <h4>
-	<i class="fa far fa-archive"></i> {{ localProject.name }} 
+	<i class="fa far fa-archive"></i> {{ localProject.name }}
 	{% if issue.data.milestone %}
 		<span class="float-end"><i class="fa far fa-tasks"></i> {{ issue.data.milestone.title }}</span>
 	{% endif %}
@@ -59,7 +58,7 @@
 					<a href="{{ issue.data.milestone.web_url }}" target="_blank">
 						<i class="fab fa-gitlab"></i>
 					</a>
-					{% endif %} 
+					{% endif %}
 					<br />
 					<small class="text-muted">
 						{{ issue.data.milestone.start_date|date:settings.DATE_FORMAT }} -
@@ -96,7 +95,7 @@
 						{% with names=label.name|split:"::" %}
 							{% if names|length > 1 %}
 								<span class="badge bg-primary">{{ names.0|capfirst }}: {{ names.1|capfirst }}</span>
-							{% else %}	
+							{% else %}
 								<span class="badge bg-primary">{{ label }}</span>
 							{% endif %}
 						{% endwith %}
@@ -132,7 +131,7 @@
 					{% endwith %}
 				</td>
 			</tr>
-			{% endwith %} 
+			{% endwith %}
 			{% if issue.data.assignees|length > 0 %}
 			<tr>
 				<th>{% trans 'Assigned' %}</th>
@@ -175,7 +174,7 @@
 				{% endif %}
 			</button>
 			<button type="button" class="btn btn-outline-primary">
-				<i class="far fa fa-history"></i> 
+				<i class="far fa fa-history"></i>
 				{% if issue.data.time_stats_human_time_estimate %}
 					{{ issue.data.time_stats_human_time_estimate }}
 				{% else %}
@@ -274,7 +273,7 @@
 		/**
 		* Removes the d-none class from the selectors elements and hide the given element
 		* @param {Element} element - The DOM element object to hide
-		* @param {string} selector - The selector of the elements to remove their 
+		* @param {string} selector - The selector of the elements to remove their
 		*/
 		function removeDNone (element, selector) {
 			document.querySelectorAll(selector).forEach((dnone) => { dnone.classList.remove('d-none') })

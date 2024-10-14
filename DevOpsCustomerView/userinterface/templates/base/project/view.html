@@ -13,8 +13,7 @@
     <script nonce="{{ request.csp_nonce }}" src="{% static 'vendor/frappe-gantt/frappe-gantt.js' %}"></script>
     <script nonce="{{ request.csp_nonce }}">
       var tasks = [
-      {% for milestone in allMilestones %} 
-        
+      {% for milestone in allMilestones %}
         {% if milestone.start_date and milestone.due_date %}
           {% with milestone.due_date|dayssince as dayssince %}
             {% if milestone.expired == False or milestone.expired == True and dayssince < 365 %}
@@ -62,14 +61,14 @@
 
 {% block content %}
 <div class="btn-group float-end" role="group">
-  {% if localProject.enableTicketCreation %}
-  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Create Ticket" %}</a>
+  {% if localProject.enable_ticket_creation %}
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/issues/create" class="btn btn-outline-primary"><i class="fa far fa-plus"></i> {% trans "Ticket erstellen" %}</a>
   {% endif %}
   {% if localProject.enable_milestones %}
-  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/milestones/" class="btn btn-outline-primary"><i class="fa far fa-tasks"></i> {% trans "Milestones" %}</a>
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/milestones/" class="btn btn-outline-primary"><i class="fa far fa-tasks"></i> {% trans "Meilensteine" %}</a>
   {% endif %}
   {% if wikiPages and localProject.enable_documentation  %}
-  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/documentation/" class="btn btn-outline-primary"><i class="fa far fa-book"></i> {% trans "Documentation" %}</a>
+  <a href="/project/{{ remoteProject.path }}/{{ remoteProject.remoteIdentifier }}/documentation/" class="btn btn-outline-primary"><i class="fa far fa-book"></i> {% trans "Dokumentation" %}</a>
   {% endif %}
   {% if request.user.is_superuser %}
   <a href="{{ remoteProject.web_url }}" class="btn btn-outline-primary" target="_blank"><i class="fab fa-gitlab"></i></a>
@@ -130,5 +129,4 @@
       {% endif %}
     </div>
   </div>
-  
 {% endblock %}

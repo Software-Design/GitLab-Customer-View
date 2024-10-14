@@ -67,7 +67,7 @@
       <br><br>
       {% trans "Login is required to access information on this dashboard. Please enter the passcode below to access this page." %}
       <br><br>
-      <form method="POST" action="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/{{ localProject.publicAccessHash }}">
+      <form method="POST" action="/project/{{ remoteProject.path }}/{{ remoteProject.id }}/{{ localProject.public_access_hash }}">
         {% csrf_token %}
         <div class="row">
           <div class="col-lg-6">
