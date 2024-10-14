@@ -31,7 +31,8 @@ class Command(BaseCommand):
             self.run_migrations()
 
             self.stdout.write("Standardteam erstellen...")
-            default_team = self.create_default_team()
+            default_team = self.create_default_web_team()
+            self.create_default_orga_team()
 
             self.stdout.write("Standardunternehmen erstellen...")
             default_company = self.create_default_company()
@@ -65,7 +66,15 @@ class Command(BaseCommand):
         with open(file_path, mode="r", encoding="utf-8") as file:
             reader = csv.DictReader(file, delimiter=";")
             for row in reader:
-                team = Team.objects.filter().first()
+                if row["Team"] == "Entwicklung / IT":
+                    team = Team.objects.filter(name="SD Team Web").first()
+                    role = "DEV"
+                elif row["Team"] == "Organisation":
+                    team = Team.objects.filter(name="Organisation").first()
+                    role = "ORG"
+                else:
+                    team = None
+
                 user, created = User.objects.get_or_create(
                     username=f"{row['Short']}@software-design.de",
                     defaults={
@@ -87,11 +96,16 @@ class Command(BaseCommand):
                         "mattermost_user": row["Mattermost-User"],
                         "code": row["Code"],
                         "short": row["Short"],
-                        "role": "NA",
+                        "role": role if role else "NA",
+                        "homepage": f"https://software-design.de/kontakt/team/{row['Short']}",
+                        "phone": f"0761 216 306 {row['Code']}",
                     },
                 )
                 team_member.teams.add(team)
-                print("Created: ", team_member)
+                print(
+                    "Created: ",
+                    team_member.user.first_name + " " + team_member.user.last_name,
+                )
                 image_name = row["Picture"]
                 image_path = os.path.join(
                     settings.BASE_DIR,
@@ -119,9 +133,16 @@ class Command(BaseCommand):
         call_command("migrate")
         call_command("createcachetable")
 
-    def create_default_team(self) -> Team:
+    def create_default_web_team(self) -> Team:
         team, _ = Team.objects.get_or_create(
             name="SD Team Web", defaults={"description": "Internes Team für Webseiten."}
+        )
+        return team
+
+    def create_default_orga_team(self) -> Team:
+        team, _ = Team.objects.get_or_create(
+            name="Organisation",
+            defaults={"description": "Organisation."},
         )
         return team
 
