@@ -7,7 +7,6 @@ from .models import (
     Project,
     Team,
     TeamMember,
-    UserProjectAssignment,
 )
 
 
@@ -35,7 +34,7 @@ class PeopleAdmin(ImportExportModelAdmin):
 class AssignmentAdmin(ImportExportModelAdmin):
     list_display = ("get_team_names", "project")
 
-    def get_team_names(self, assignment: UserProjectAssignment) -> str:
+    def get_team_names(self, assignment: Project) -> str:
         team_names = [team.name for team in assignment.teams.all()]
         return ", ".join(team_names) if team_names else "No Teams Assigned"
 
@@ -84,4 +83,3 @@ admin.site.register(DownloadableFile, DownloadableFileAdmin)
 admin.site.register(Project, ProjectAdmin)
 admin.site.register(Team, TeamAdmin)
 admin.site.register(TeamMember, PeopleAdmin)
-admin.site.register(UserProjectAssignment, AssignmentAdmin)

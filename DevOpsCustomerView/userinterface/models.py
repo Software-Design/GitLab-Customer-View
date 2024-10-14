@@ -65,12 +65,20 @@ class TeamMember(models.Model):
         TEAMLEITUNG = "TL", _("Teamleitung")
         DEVELOPER = "DEV", _("Developer")
         ORGANISATION = "ORG", _("Organisation")
+        NICHT_ZUGEWIESEN = "NA", _("Nicht zugewiesen")
 
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="team_memberships"
     )
     teams = models.ManyToManyField(Team, related_name="members")
     role = models.CharField(max_length=3, choices=RoleChoices.choices, blank=True)
+
+    title = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    picture = models.ImageField(upload_to="team_pictures/", blank=True)
+    mattermost_user = models.CharField(max_length=200, blank=True)
+    code = models.CharField(max_length=200, blank=True)
+    short = models.CharField(max_length=200, blank=True)
 
     class Meta:
         verbose_name = "SD Teammitglied"
@@ -104,7 +112,6 @@ class Project(models.Model):
     )
     public_overview_password = models.CharField(
         max_length=64,
-        default="",
         null=True,
         blank=True,
         help_text="Wenn kein Passwort gesetzt ist, ist die öffentliche Übersichtsseite nicht zugänglich",
@@ -187,34 +194,8 @@ class Project(models.Model):
             from .tools.githubCache import loadProject
         return loadProject(
             self,
-            UserProjectAssignment.objects.filter(project=self).first().access_token,
+            self.access_token,
         )
-
-
-class UserProjectAssignment(models.Model):
-    """Assignment between teams and projects, containing authentication information (per team token)."""
-
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    access_token = models.CharField(max_length=256)
-    enable_notifications = models.BooleanField(default=False)
-    teams = models.ManyToManyField(Team, blank=True)
-    customer_company = models.ForeignKey(CustomerCompany, on_delete=models.CASCADE)
-
-    class Meta:
-        verbose_name = "Projektzuweisung"
-        verbose_name_plural = "Projektzuweisungen"
-
-    def __str__(self) -> str:
-        return f"{self.project.name} ({self.customer_company.name})"
-
-    def get_all_users_with_access(self) -> Set[User]:
-        """Get all users who have access to the project through their team."""
-        users_with_access = set()
-        for team in self.teams.all():
-            team_members = TeamMember.objects.filter(team=team)
-            for member in team_members:
-                users_with_access.add(member.user)
-        return users_with_access
 
 
 class DownloadableFile(models.Model):

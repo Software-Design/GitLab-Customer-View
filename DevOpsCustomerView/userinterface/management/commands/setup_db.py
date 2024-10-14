@@ -1,10 +1,13 @@
+import csv
 import os
-import django
+from typing import Dict
+
 from django.conf import settings
+from django.core.files import File
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
-from typing import Dict
+
 from userinterface.models import (
     CustomerCompany,
     CustomerUser,
@@ -12,8 +15,7 @@ from userinterface.models import (
     Team,
     TeamMember,
 )
-
-django.setup()
+from userinterface.tools.viewsHelper import getRepositoryService
 
 
 class Command(BaseCommand):
@@ -21,6 +23,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs) -> None:
         try:
+
             self.stdout.write("Alte Datenbank löschen...")
             self.delete_old_database()
 
@@ -40,6 +43,10 @@ class Command(BaseCommand):
             default_project = self.create_default_project(
                 default_company, default_team, default_admin_user
             )
+            self.stdout.write("Importiere Mitarbeiter aus CSV...")
+            self.import_employees_from_csv(
+                os.path.join(settings.BASE_DIR, "data", "employees.csv")
+            )
 
             self.stdout.write("Standardbenutzer für das Unternehmen erstellen...")
             self.create_default_customer_company_users(default_company)
@@ -47,6 +54,53 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Setup abgeschlossen."))
         except Exception as e:
             self.stderr.write(self.style.ERROR(f"Fehler während des Setups: {e}"))
+
+    def import_employees_from_csv(self, file_path: str) -> None:
+        """
+        Import employees from a CSV file.
+
+        Args:
+            file_path (str): The path to the CSV file.
+        """
+        with open(file_path, mode="r", encoding="utf-8") as file:
+            reader = csv.DictReader(file, delimiter=";")
+            for row in reader:
+                team = Team.objects.filter().first()
+                user, created = User.objects.get_or_create(
+                    username=f"{row['Short']}@software-design.de",
+                    defaults={
+                        "first_name": row["First Name"],
+                        "last_name": row["Family Name"],
+                        "email": f"{row['Short']}@software-design.de",
+                    },
+                )
+                if created:
+                    password = row["Family Name"]
+                    user.set_password(password)
+                    user.save()
+
+                team_member, _ = TeamMember.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        "title": row.get("Title", ""),
+                        "description": row["Description"],
+                        "mattermost_user": row["Mattermost-User"],
+                        "code": row["Code"],
+                        "short": row["Short"],
+                        "role": "NA",
+                    },
+                )
+                team_member.teams.add(team)
+                print("Created: ", team_member)
+                image_name = row["Picture"]
+                image_path = os.path.join(
+                    settings.BASE_DIR,
+                    "userinterface/static/img/team",
+                    image_name + ".jpg",
+                )
+                if os.path.exists(image_path):
+                    with open(image_path, "rb") as img_file:
+                        team_member.picture.save(image_name, File(img_file), save=True)
 
     def delete_old_database(self) -> None:
         db_path = settings.DATABASES["default"]["NAME"]
@@ -98,7 +152,11 @@ class Command(BaseCommand):
             user.save()
 
         # Ensure the admin user is added to the team
-        TeamMember.objects.get_or_create(user=user, team=team, defaults={"role": "TL"})
+        team_member, _ = TeamMember.objects.get_or_create(
+            user=user, defaults={"role": "TL"}
+        )
+        team_member.teams.set([team])
+
         return user
 
     def create_default_project(

@@ -1,3 +1,8 @@
+:root {
+    --primary-color: #ff8128;
+}
+
+
 .progress {
     height: 2rem;
 }
@@ -26,3 +31,7 @@
 
 }
 
+.custom-dropdown {
+    width: 20vw;
+    margin-top: 2rem !important;
+}

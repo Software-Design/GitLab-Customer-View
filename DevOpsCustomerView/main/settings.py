@@ -100,7 +100,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # SevDesk API settings
 SEVDESK_API_URL = "https://my.sevdesk.de/api/v1/"
-SEVDESK_TOKEN = ""
+SEVDESK_TOKEN = "dd56e88ddf7db9f4d1ca1c4fbd4675d"
 
 
 # Internationalization
@@ -204,7 +204,6 @@ JAZZMIN_SETTINGS = {
         "userinterface.Company",
         "userinterface.CustomerUser",
         "userinterface.Project",
-        "userinterface.UserProjectAssignment",
         "userinterface.Team",
         "userinterface.TeamMember",
         "auth",
@@ -227,11 +226,6 @@ JAZZMIN_SETTINGS = {
                 "name": "Projekte",
                 "url": "admin:userinterface_project_changelist",
                 "icon": "fas fa-project-diagram",
-            },
-            {
-                "name": "Projektezuweisung",
-                "url": "admin:userinterface_userprojectassignment_changelist",
-                "icon": "fas fa-tasks",
             },
         ],
         "Teams": [
@@ -257,7 +251,6 @@ JAZZMIN_SETTINGS = {
         "userinterface.Project": "fas fa-project-diagram",
         "userinterface.Team": "fas fa-users",
         "userinterface.TeamMember": "fas fa-user-friends",
-        "userinterface.UserProjectAssignment": "fas fa-tasks",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",

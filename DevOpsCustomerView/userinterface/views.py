@@ -1,9 +1,7 @@
 import datetime
 import os
-from datetime import timezone
-from typing import Union
+from typing import Union, Dict, Any
 
-import django
 import pdfkit
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
@@ -14,7 +12,7 @@ from django.core.cache import cache
 from django.core.handlers.wsgi import WSGIRequest
 from django.core.mail import EmailMessage
 from django.http import HttpResponse, HttpResponseRedirect, FileResponse, Http404
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.template import Context
 from django.template.loader import get_template
 from django.utils.translation import gettext as _
@@ -31,31 +29,42 @@ from .tools.sendMail import sendingEmail
 def index(request: WSGIRequest) -> Union[HttpResponseRedirect, HttpResponse]:
     """
     Handles the requests for /
-    Provites the login mechanism to authenticate users
+    Provides the login mechanism to authenticate users
     """
 
     if request.user.is_authenticated:
         return redirect("/overview/")
 
-    if request.POST.get("email"):
-        # It is allowed to login with both: email or username
-        requestingUser = User.objects.filter(email=request.POST["email"]).first()
-        username = getattr(requestingUser, "username", request.POST["email"])
-        user = authenticate(
-            request, username=username, password=request.POST["password"]
-        )
+    if request.method == "POST" and request.POST.get("email"):
+        return handle_login(request)
 
-        if user:
-            login(request, user)
+    return render_login_page(request)
 
-            redirectUrl = request.GET.get("next")
-            if url_has_allowed_host_and_scheme(redirectUrl, None):
-                return redirect(iri_to_uri(redirectUrl))
-            return redirect("/overview/")
 
-        return redirect("/?error=invalid")
+def handle_login(request: WSGIRequest) -> HttpResponseRedirect:
+    """
+    Handles the login process for the user
+    """
+    requesting_user = User.objects.filter(email=request.POST["email"]).first()
+    username = getattr(requesting_user, "username", request.POST["email"])
+    user = authenticate(request, username=username, password=request.POST["password"])
 
-    return HttpResponse(template("login").render({}, request))
+    if user:
+        login(request, user)
+        redirect_url = request.GET.get("next")
+        if url_has_allowed_host_and_scheme(redirect_url, None):
+            return redirect(iri_to_uri(redirect_url))
+        return redirect("/overview/")
+
+    return redirect("/?error=invalid")
+
+
+def render_login_page(request: WSGIRequest) -> HttpResponse:
+    """
+    Renders the login page
+    """
+    teams = Team.objects.all()
+    return HttpResponse(template("login").render({"teams": teams}, request))
 
 
 def loggingout(request: WSGIRequest) -> HttpResponseRedirect:
@@ -71,21 +80,22 @@ def loggingout(request: WSGIRequest) -> HttpResponseRedirect:
 @login_required
 def userSettings(request: WSGIRequest, slug: str, id: int) -> HttpResponse:
     glProject = get_project(request, id)
-    projectAssignment = UserProjectAssignment.objects.filter(
-        project=glProject["localProject"], user=request.user
-    ).first()
+    # projectAssignment = UserProjectAssignment.objects.filter(
+    #     project=glProject["localProject"], user=request.user
+    # ).first()
 
     if request.POST:
-        projectAssignment.enableNotifications = False
-        if request.POST.get("enableNotifications"):
-            projectAssignment.enableNotifications = True
-        projectAssignment.save()
+        print(glProject)
+    #     projectAssignment.enable_notifications = False
+    #     if request.POST.get("enable_notifications"):
+    #         projectAssignment.enable_notifications = True
+    #     projectAssignment.save()
 
-    return HttpResponse(
-        template("project/userSettings").render(
-            {"enableNotifications": projectAssignment.enableNotifications}, request
-        )
-    )
+    # return HttpResponse(
+    #     template("project/userSettings").render(
+    #         {"enable_notifications": projectAssignment.enable_notifications}, request
+    #     )
+    # )
 
 
 @login_required
@@ -98,22 +108,18 @@ def reportOverview(request: WSGIRequest) -> HttpResponse:
 
     members = TeamMember.objects.all()
 
-    projectAssignments = (
-        UserProjectAssignment.objects.filter(project__closed=False)
-        .order_by("project__name")
-        .all()
-    )
+    active_projects = []
+    projects = Project.objects.filter(closed=False).order_by("name").distinct()
 
-    activeProjects = []
-    for assignment in projectAssignments:
-        repService = getRepositoryService(assignment.project)
-        glProject = repService.loadProject(assignment.project, assignment.access_token)
-        if not glProject in activeProjects:
-            activeProjects.append(glProject)
+    for project in projects:
+        rep_service = getRepositoryService(project)
+        gl_project = rep_service.loadProject(project, project.access_token)
+        if gl_project not in active_projects:
+            active_projects.append(gl_project)
 
     return HttpResponse(
         template("report/view").render(
-            {"members": members, "activeProjects": activeProjects}, request
+            {"members": members, "activeProjects": active_projects}, request
         )
     )
 
@@ -132,10 +138,12 @@ def projectList(request: WSGIRequest) -> HttpResponse:
     )
 
     if not request.user.is_staff:
-        team_memberships = TeamMember.objects.filter(user=request.user).values_list(
-            "team", flat=True
+        customer_memberships = CustomerCompany.objects.filter(
+            customeruser__user=request.user
+        ).values_list("id", flat=True)
+        project_assignments = project_assignments.filter(
+            customer_company__in=customer_memberships
         )
-        project_assignments = project_assignments.filter(teams__in=team_memberships)
 
     seen_projects = set()
     active_projects = []
@@ -169,65 +177,61 @@ def projectList(request: WSGIRequest) -> HttpResponse:
 
 def projectPublic(request: WSGIRequest, slug: str, id: int, hash: str) -> HttpResponse:
     """
-    Generate an overview for a project that is accesible without having an account
+    Generate an overview for a project that is accessible without having an account.
     """
-    # ToDo Check ???
-
-    assignment = (
-        UserProjectAssignment.objects.filter(
-            project__closed=False,
-            project__project_identifier=id,
-            project__privateUrlHash=hash,
-        )
-        .exclude(
-            project__publicOverviewPassword__isnull=True,
-            project__publicOverviewPassword__in=["", " ", None],
-        )
-        .first()
+    project = get_object_or_404(
+        Project, project_identifier=id, private_url_hash=hash, closed=False
     )
-    repService = getRepositoryService(assignment.project)
-    glProject = repService.loadProject(assignment.project, assignment.access_token)
 
-    if request.POST.get("password"):
-        if request.POST["password"] == assignment.project.publicOverviewPassword:
-            request.session["password"] = request.POST.get("password")
+    if not project.public_overview_password:
+        return HttpResponse("Project not found or access restricted", status=404)
+
+    if request.method == "POST" and request.POST.get("password"):
+        if request.POST["password"] == project.public_overview_password:
+            request.session["password"] = request.POST["password"]
         else:
             return redirect(f"/project/{slug}/{id}/{hash}?error=invalid")
 
     if request.GET.get("error"):
-        return HttpResponse(template("project/public").render(glProject, request))
+        return render(request, "project/public.html", {"project": project})
 
     if (
         not request.session.get("password")
-        or request.session.get("password") != assignment.project.publicOverviewPassword
+        or request.session["password"] != project.public_overview_password
     ):
         return redirect(f"/project/{slug}/{id}/{hash}?error=loginrequired")
 
-    firstMilestoneStart = None
-    lastMilestoneEnd = None
+    first_milestone_start = None
+    last_milestone_end = None
 
-    for milestone in glProject["allMilestones"]:
+    for milestone in project.allMilestones.all():
         if milestone.start_date and milestone.due_date:
-            start = parse_date(milestone.start_date)
-            end = parse_date(milestone.due_date)
-            if milestone.expired == False or (
-                milestone.expired == True and (end - start).days < 365
+            start = parse_date(str(milestone.start_date))
+            end = parse_date(str(milestone.due_date))
+            if not milestone.expired or (
+                milestone.expired and (end - start).days < 365
             ):
-                if firstMilestoneStart == None or start < firstMilestoneStart:
-                    firstMilestoneStart = start
-                if lastMilestoneEnd == None or end > lastMilestoneEnd:
-                    lastMilestoneEnd = end
+                if first_milestone_start is None or start < first_milestone_start:
+                    first_milestone_start = start
+                if last_milestone_end is None or end > last_milestone_end:
+                    last_milestone_end = end
 
-    daysbetween = 0
-    if lastMilestoneEnd and firstMilestoneStart:
-        daysbetween = (lastMilestoneEnd - firstMilestoneStart).days
+    days_between = 0
+    if last_milestone_end and first_milestone_start:
+        days_between = (last_milestone_end - first_milestone_start).days
 
-    return HttpResponse(
-        template("project/public").render(
-            glProject | {"fileTypes": DownloadableFile, "daysbetween": daysbetween},
-            request,
-        )
-    )
+    rep_service = getRepositoryService(project)
+    gl_project = rep_service.loadProject(project, project.access_token)
+
+    context = {
+        "project": project,
+        "first_milestone_start": first_milestone_start,
+        "last_milestone_end": last_milestone_end,
+        "days_between": days_between,
+        "gl_project": gl_project,
+    }
+
+    return render(request, "project/public.html", context)
 
 
 @login_required
@@ -495,8 +499,9 @@ def fileDownload(request: WSGIRequest, slug: str, id: int, file: str) -> HttpRes
     # Only bxpass the regular permission system if the project is public and the user has already authenticated himself with the public board password
     if (
         not request.session.get("password")
-        or not assignment.project.publicOverviewPassword
-        or request.session.get("password") != assignment.project.publicOverviewPassword
+        or not assignment.project.public_overview_password
+        or request.session.get("password")
+        != assignment.project.public_overview_password
     ):
         glProject = get_project(request, id)
         if isinstance(glProject, HttpResponse):
@@ -598,59 +603,83 @@ def printWiki(
 
 
 @login_required
-def printOverview(request: WSGIRequest, slug: str, id: int):
+def print_overview(request: WSGIRequest, slug: str, id: int) -> HttpResponse:
     """
     Handles the requests for /project/<slug:slug>/<int:id>/print/<str:date>
-    Renders a pdf of the project overview to enable downloading it
+    Renders a PDF of the project overview to enable downloading it.
     """
+    try:
+        gl_project = get_project(request, id)
+        if isinstance(gl_project, HttpResponse):
+            return gl_project
 
-    ### ToDo
+        project_identifier = gl_project["localProject"].project_identifier
+        repository_service = getRepositoryService(gl_project["localProject"])
+        issues = repository_service.loadIssues(
+            gl_project["localProject"], gl_project["remoteInstance"]
+        )  # TODO: Check for different pages
 
-    glProject = get_project(request, id)
-    if isinstance(glProject, HttpResponse):
-        return glProject
+        start_date = parse_date(request.GET.get("start"))
+        end_date = parse_date(request.GET.get("end")) + datetime.timedelta(days=1)
 
-    project_identifier = glProject["localProject"].project_identifier
-
-    repService = getRepositoryService(glProject["localProject"])
-    issues = repService.loadIssues(
-        glProject["localProject"], glProject["remoteInstance"]
-    )  # TODO check for different pages
-
-    pdfkit.from_string(
-        template("print/overview").render(
-            glProject
-            | {
-                "issues": issues,
-                "start": datetime.datetime.strptime(
-                    request.GET.get("start"), "%Y-%m-%d"
-                ),
-                "end": (
-                    datetime.datetime.strptime(request.GET.get("end"), "%Y-%m-%d")
-                    + datetime.timedelta(days=1)
-                ),
-            },
-            request,
-        ),
-        "/tmp/" + project_identifier + ".pdf",
-        {
+        rendered_html = render_template(
+            "print/overview", gl_project, issues, start_date, end_date, request
+        )
+        output_path = f"/tmp/{project_identifier}.pdf"
+        pdf_options = {
             "encoding": "UTF-8",
-            "--footer-center": "[page] " + _("of") + " [topage]",
+            "--footer-center": f"[page] {_('of')} [topage]",
             "--footer-left": settings.INTERFACE_NAME,
             "--footer-right": datetime.datetime.now().strftime("%d.%m.%Y"),
-        },
-        verbose=True,
-    )
+        }
 
-    with open("/tmp/" + project_identifier + ".pdf", "rb") as f:
-        file_data = f.read()
+        pdfkit.from_string(rendered_html, output_path, pdf_options, verbose=True)
 
-    os.remove("/tmp/" + project_identifier + ".pdf")
+        with open(output_path, "rb") as file:
+            file_data = file.read()
 
-    response = HttpResponse(file_data, content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="overview.pdf"'
+        os.remove(output_path)
 
-    return response
+        response = HttpResponse(file_data, content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="overview.pdf"'
+
+        return response
+
+    except Exception as e:
+        # Basic error handling
+        return HttpResponse(f"An error occurred: {e}", status=500)
+
+
+def render_template(
+    template_name: str,
+    gl_project: Dict[str, Any],
+    issues: Any,
+    start_date: datetime.datetime,
+    end_date: datetime.datetime,
+    request: WSGIRequest,
+) -> str:
+    """
+    Render the template with the given data.
+
+    Args:
+        template_name (str): The name of the template to render.
+        gl_project (Dict[str, Any]): The project data.
+        issues (Any): The issues data.
+        start_date (datetime.datetime): The start date.
+        end_date (datetime.datetime): The end date.
+        request (WSGIRequest): The HTTP request object.
+
+    Returns:
+        str: The rendered HTML string.
+    """
+    template = get_template(template_name)
+    context = {
+        **gl_project,
+        "issues": issues,
+        "start": start_date,
+        "end": end_date,
+    }
+    return template.render(context, request)
 
 
 #
@@ -713,3 +742,82 @@ def github_issues(request, repo):
     repo = "SD-Twayn"
     issues = github_service.get_repo_issues(repo=repo)
     return render(request, "github_issues.html", {"issues": issues})
+
+
+import base64
+from datetime import datetime
+from typing import Any, Dict
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from django.conf import settings
+from django.http import HttpRequest, HttpResponse, FileResponse, Http404
+from django.shortcuts import render
+import requests
+
+
+def decrypt_secret(secret: str, key: str) -> str:
+    ciphering = "AES--CTR"
+    encryption_iv = b"EinzigWahrerLoki"
+    key = (key + "MerlinDerMagier").encode("utf-8")
+    cipher = Cipher(
+        algorithms.AES(key), modes.CTR(encryption_iv), backend=default_backend()
+    )
+    decryptor = cipher.decryptor()
+    decrypted = decryptor.update(base64.b64decode(secret)) + decryptor.finalize()
+    return decrypted.decode("utf-8")[:8]
+
+
+def get_sevdesk_auth() -> str:
+    return settings.SEVDESK_TOKEN
+
+
+def make_sevdesk_request(url: str, auth: str) -> Dict[str, Any]:
+    headers = {"Authorization": auth, "Content-Type": "application/json"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def angebote(request: HttpRequest) -> HttpResponse:
+    secret = request.GET.get("secret")
+    key1 = request.GET.get("key1")
+    download = request.GET.get("download")
+
+    if not secret or not key1:
+        context = {
+            "error_message": "Link ungültig",
+            "title": "Error",
+            "description": "",
+            "noindex": True,
+        }
+        return render(request, "sd/angebote.html", context)
+
+    id = decrypt_secret(secret, key1)
+    sevdesk_auth = get_sevdesk_auth()
+
+    order_url = f"https://my.sevdesk.de/api/v1/Order/{id}?embed=contact"
+    order_result = make_sevdesk_request(order_url, sevdesk_auth)["objects"][0]
+
+    position_url = f"https://my.sevdesk.de/api/v1/Order/{id}/getPositions?embed=unity"
+    position_result = make_sevdesk_request(position_url, sevdesk_auth)["objects"]
+
+    if download:
+        pdf_url = f"https://my.sevdesk.de/api/v1/Order/{id}/getPdf"
+        pdf_result = make_sevdesk_request(pdf_url, sevdesk_auth)["objects"]
+        pdf_content = base64.b64decode(pdf_result["content"])
+        response = HttpResponse(pdf_content, content_type=pdf_result["mimetype"])
+        response["Content-Disposition"] = (
+            f'attachment; filename="{pdf_result["filename"]}"'
+        )
+        return response
+
+    context = {
+        "order_result": order_result,
+        "position_result": position_result,
+        "title": order_result["header"],
+        "description": "",
+        "noindex": True,
+    }
+
+    return render(request, "angebote.html", context)
